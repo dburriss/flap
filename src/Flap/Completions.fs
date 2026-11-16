@@ -5,6 +5,7 @@ type Shell =
     | Zsh
     | Fish
     | PowerShell
+    | Nushell
 
 module Completions =
 
@@ -19,17 +20,17 @@ module Completions =
     type private Slot = { First: int; Last: int option; Spec: ValueSpec }
 
     /// A command in the tree, with the args it accepts (own args + inherited globals, like the parser).
-    type private Ctx = { CtxId: string; Cmd: Command; Args: Arg list }
+    type private Ctx = { CtxId: string; Path: string list; Cmd: Command; Args: Arg list }
 
     let private ident (s: string) = s.Replace('-', '_')
 
-    let rec private contexts (id: string) (inherited: Arg list) (cmd: Command) : Ctx list =
+    let rec private contexts (id: string) (path: string list) (inherited: Arg list) (cmd: Command) : Ctx list =
         let inh = inherited |> List.filter (fun g -> not (cmd.Args |> List.exists (fun a -> a.Id = g.Id)))
         let child = inh @ (cmd.Args |> List.filter (fun a -> a.Global))
-        { CtxId = id; Cmd = cmd; Args = cmd.Args @ inh }
-        :: (cmd.Subcommands |> List.collect (fun s -> contexts (id + "__" + ident s.Name) child s))
+        { CtxId = id; Path = path; Cmd = cmd; Args = cmd.Args @ inh }
+        :: (cmd.Subcommands |> List.collect (fun s -> contexts (id + "__" + ident s.Name) (path @ [ s.Name ]) child s))
 
-    let private all (cmd: Command) = contexts (ident cmd.Name) [] cmd
+    let private all (cmd: Command) = contexts (ident cmd.Name) [ cmd.Name ] [] cmd
 
     /// (word, child id) pairs for every subcommand name/alias of a context.
     let private transitionsOf (ctx: Ctx) : (string * string) list =
@@ -447,6 +448,90 @@ module Completions =
                  "}"
                  "" ])
 
+    // ---------------------------------------------------------------------------------------------
+    // Nushell (extern definitions; `string@"completer"` for fixed values, `path`/`directory` for hints)
+    // ---------------------------------------------------------------------------------------------
+
+    /// Nushell double-quoted string.
+    let private nq (s: string) =
+        "\""
+        + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n")
+        + "\""
+
+    let private oneLine (s: string) = s.Replace("\r", "").Replace("\n", " ").Trim()
+
+    let private nushell (cmd: Command) =
+        let ctxs = all cmd
+        let completerName (c: Ctx) (a: Arg) = "nu-complete " + String.concat " " c.Path + " " + a.Id
+        let typeOf (c: Ctx) (a: Arg) =
+            if not a.PossibleValues.IsEmpty then "string@" + nq (completerName c a)
+            else
+                match pathOf a with
+                | Some 'd' -> "directory"
+                | Some _ -> "path"
+                | None -> "string"
+        let comment (a: Arg) =
+            match a.HelpText with
+            | Some h when oneLine h <> "" -> " # " + oneLine h
+            | _ -> ""
+        let flagLine (c: Ctx) (a: Arg) =
+            let names =
+                match a.Long, a.Short with
+                | Some l, Some s -> "--" + l + " (-" + string s + ")"
+                | Some l, None -> "--" + l
+                | None, Some s -> "-" + string s
+                | None, None -> ""
+            if names = "" then None
+            else Some("    " + names + (if Arg.takesValue a then ": " + typeOf c a else "") + comment a)
+        let positionalLines (c: Ctx) =
+            c.Args
+            |> List.filter (fun a -> a.Index.IsSome && not a.Hidden)
+            |> List.sortBy (fun a -> a.Index.Value)
+            |> List.fold
+                (fun (seenOpt, acc) a ->
+                    let name = ident a.Id
+                    if a.MaxValues > 1 then true, acc @ [ "    ..." + name + ": " + typeOf c a + comment a ]
+                    elif a.Required && not seenOpt then seenOpt, acc @ [ "    " + name + ": " + typeOf c a + comment a ]
+                    else true, acc @ [ "    " + name + "?: " + typeOf c a + comment a ])
+                (false, [])
+            |> snd
+        let defs (c: Ctx) =
+            visibleOptions c
+            @ (c.Args |> List.filter (fun a -> a.Index.IsSome && not a.Hidden))
+            |> List.filter (fun a -> not a.PossibleValues.IsEmpty && (a.Index.IsSome || Arg.takesValue a))
+            |> List.map (fun a ->
+                "def " + nq (completerName c a) + " [] { [ " + (a.PossibleValues |> List.map nq |> String.concat " ") + " ] }")
+        let namePaths (c: Ctx) : string list =
+            // Walk the tree following c.Path (canonical names) and fan out over aliases at each level below the root.
+            let rec go (cur: Command) (names: string list) : string list list =
+                match names with
+                | [] -> [ [] ]
+                | n :: tl ->
+                    match cur.Subcommands |> List.tryFind (fun s -> s.Name = n) with
+                    | None -> []
+                    | Some s ->
+                        (s.Name :: s.CommandAliases)
+                        |> List.collect (fun spelling -> go s tl |> List.map (fun r -> spelling :: r))
+            go cmd c.Path.Tail |> List.map (fun r -> String.concat " " (cmd.Name :: r))
+        let rec hiddenPath (cur: Command) (names: string list) =
+            match names with
+            | [] -> false
+            | n :: tl ->
+                match cur.Subcommands |> List.tryFind (fun s -> s.Name = n) with
+                | Some s -> s.HiddenCommand || hiddenPath s tl
+                | None -> false
+        let block (c: Ctx) =
+            let about =
+                match c.Cmd.About with
+                | Some a when oneLine a <> "" -> a.Replace("\r", "").Split('\n') |> List.ofArray |> List.map (fun l -> ("# " + l).TrimEnd())
+                | _ -> []
+            let body = (visibleOptions c |> List.choose (flagLine c)) @ positionalLines c
+            defs c
+            @ (namePaths c
+               |> List.collect (fun p -> about @ [ "export extern " + nq p + " [" ] @ body @ [ "]"; "" ]))
+        let visible = ctxs |> List.filter (fun c -> not (hiddenPath cmd c.Path.Tail))
+        String.concat "\n" (visible |> List.collect block)
+
     /// Generate a completion script for the given shell.
     let generate (shell: Shell) (cmd: Command) : string =
         match shell with
@@ -454,3 +539,4 @@ module Completions =
         | Zsh -> zsh cmd
         | Fish -> fish cmd
         | PowerShell -> powershell cmd
+        | Nushell -> nushell cmd

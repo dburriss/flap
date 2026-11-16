@@ -9,5 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of Flap, a clap-style fluent CLI parser for F#: `Arg` and `Command` builders, `Matches` with typed getters, help/version output, did-you-mean suggestions and shell completions (Bash, Zsh, Fish, PowerShell).
+- Initial release of Flap, a clap-style fluent CLI parser for F#: `Arg` and `Command` builders, `Matches` with typed getters, help/version output, did-you-mean suggestions and shell completions (Bash, Zsh, Fish, PowerShell, Nushell).
 - Native AOT (reflection-free) and Fable compatibility, with samples.

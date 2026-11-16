@@ -102,3 +102,84 @@ let ``powershell completes option values, positional values, paths and scopes su
     Assert.DoesNotContain("'app,--env'", s)
     assertLine (hasAll [ "'app__deploy,--level'"; "$vals = @('low', 'high')" ]) s "inherited global"
     Assert.Contains("@('it''s', 'a b')", s)
+
+let nuApp =
+    Command.create "myapp"
+    |> Command.about "Does things"
+    |> Command.version "1.0"
+    |> Command.arg (Arg.create "mode" |> Arg.short 'm' |> Arg.long "mode" |> Arg.help "Run mode" |> Arg.possibleValues [ "fast"; "slow" ])
+    |> Command.arg (Arg.create "verbose" |> Arg.short 'v' |> Arg.long "verbose" |> Arg.action Count)
+    |> Command.arg (Arg.create "force" |> Arg.long "force" |> Arg.action SetTrue)
+    |> Command.arg (Arg.create "x" |> Arg.short 'x')
+    |> Command.arg (Arg.create "out" |> Arg.long "out" |> Arg.valueHint FilePath)
+    |> Command.arg (Arg.create "dir" |> Arg.long "dir" |> Arg.valueHint DirPath)
+    |> Command.arg (Arg.create "any" |> Arg.long "any" |> Arg.valueHint AnyPath)
+    |> Command.arg (Arg.create "note" |> Arg.long "note" |> Arg.valueHint Other)
+    |> Command.arg (Arg.create "quote" |> Arg.long "quote" |> Arg.help "say \"hi\"\nsecond" |> Arg.possibleValues [ "it's"; "a \"b\""; "back\\slash" ])
+    |> Command.arg (Arg.create "secret" |> Arg.long "secret-opt" |> Arg.hidden |> Arg.possibleValues [ "hiddenval" ])
+    |> Command.arg (Arg.create "level" |> Arg.long "level" |> Arg.global' |> Arg.possibleValues [ "low"; "high" ])
+    |> Command.arg (Arg.create "name" |> Arg.positional 1 |> Arg.required)
+    |> Command.arg (Arg.create "target" |> Arg.positional 2 |> Arg.possibleValues [ "alpha"; "beta" ])
+    |> Command.arg (Arg.create "files" |> Arg.positional 3 |> Arg.valueHint FilePath |> Arg.numArgs 1 5)
+    |> Command.subcommand (
+        Command.create "build"
+        |> Command.about "Build it"
+        |> Command.alias "b"
+        |> Command.arg (Arg.create "env" |> Arg.long "env" |> Arg.possibleValues [ "prod"; "staging" ])
+        |> Command.arg (Arg.create "where" |> Arg.positional 1 |> Arg.valueHint DirPath)
+    )
+
+let nu = Completions.generate Nushell nuApp
+
+[<Fact>]
+let ``nushell option possible values get a completer def and annotated param`` () =
+    assertLine (hasAll [ "def \"nu-complete myapp mode\" []"; "\"fast\""; "\"slow\"" ]) nu "completer def"
+    assertLine (hasAll [ "--mode (-m): string@\"nu-complete myapp mode\""; "# Run mode" ]) nu "annotated option with help"
+
+[<Fact>]
+let ``nushell path and directory hints and plain options`` () =
+    assertLine (fun l -> l.Trim().StartsWith "--out: path") nu "file hint"
+    assertLine (fun l -> l.Trim().StartsWith "--dir: directory") nu "dir hint"
+    assertLine (fun l -> l.Trim().StartsWith "--any: path") nu "any path hint"
+    assertLine (fun l -> l.Trim().StartsWith "--note: string") nu "other hint"
+    assertLine (fun l -> l.Trim().StartsWith "-x: string") nu "short only"
+
+[<Fact>]
+let ``nushell boolean flags are untyped`` () =
+    assertLine (fun l -> l.Trim().StartsWith "--verbose (-v)" && not (l.Contains ":")) nu "count flag"
+    assertLine (fun l -> l.Trim().StartsWith "--force" && not (l.Contains ":")) nu "set-true flag"
+    assertLine (fun l -> l.Trim().StartsWith "--help (-h)" && not (l.Contains ":")) nu "builtin help"
+    assertLine (fun l -> l.Trim().StartsWith "--version (-V)" && not (l.Contains ":")) nu "builtin version"
+
+[<Fact>]
+let ``nushell positional required optional and rest forms`` () =
+    assertLine (fun l -> l.Trim().StartsWith "name: string") nu "required"
+    assertLine (fun l -> l.Trim().StartsWith "target?: string@\"nu-complete myapp target\"") nu "optional with completer"
+    assertLine (fun l -> l.Trim().StartsWith "...files: path") nu "rest"
+    assertLine (fun l -> l.Trim().StartsWith "where?: directory") nu "sub positional dir"
+
+[<Fact>]
+let ``nushell subcommand extern path alias and inherited global`` () =
+    assertLine (fun l -> l.StartsWith "export extern \"myapp\" [") nu "root extern"
+    assertLine (fun l -> l.StartsWith "export extern \"myapp build\" [") nu "sub extern"
+    assertLine (fun l -> l.StartsWith "export extern \"myapp b\" [") nu "alias extern"
+    assertLine (hasAll [ "def \"nu-complete myapp build env\""; "\"prod\"" ]) nu "sub completer"
+    assertLine (hasAll [ "def \"nu-complete myapp build level\""; "\"low\"" ]) nu "inherited global completer"
+    assertLine (fun l -> l = "# Build it") nu "command description"
+    assertLine (fun l -> l = "# Does things") nu "root description"
+    let sub = nu.Substring(nu.IndexOf "export extern \"myapp build\"")
+    let subBlock = sub.Substring(0, sub.IndexOf "]")
+    Assert.Contains("--level: string@\"nu-complete myapp build level\"", subBlock)
+    Assert.DoesNotContain("--mode", subBlock)
+
+[<Fact>]
+let ``nushell escapes quotes and backslashes and keeps help on one line`` () =
+    Assert.Contains("\"it's\"", nu)
+    Assert.Contains("\"a \\\"b\\\"\"", nu)
+    Assert.Contains("\"back\\\\slash\"", nu)
+    assertLine (hasAll [ "--quote"; "# say \"hi\" second" ]) nu "single-line help"
+
+[<Fact>]
+let ``nushell hides hidden args`` () =
+    Assert.DoesNotContain("secret-opt", nu)
+    Assert.DoesNotContain("hiddenval", nu)

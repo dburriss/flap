@@ -28,7 +28,9 @@ let verbosity = m |> Matches.count "verbose"
   `match Matches.tryInt "times" m with Ok(Some n) -> ... | Ok None -> ... | Error e -> eprintfn "%s" e`.
 - Supports flags, counts, options, append/multi-value, delimiters, positionals, subcommands, global args, env vars,
   defaults, possible values, validators, conflicts/requires, groups, external subcommands, help/version,
-  did-you-mean suggestions and completions (`Completions.generate Bash|Zsh|Fish|PowerShell cmd`).
+  did-you-mean suggestions and completions (`Completions.generate Bash|Zsh|Fish|PowerShell|Nushell cmd`).
+- Nushell completions (`Completions.generate Nushell cmd`) emit `export extern` definitions per command level (and alias), with
+  `def "nu-complete ..."` completers for possible values and `path`/`directory` typing for value hints.
 - `Arg.allowHyphenValues` lets an option/positional take a value starting with `-`; `Arg.trailingVarArg` (last, multi-value
   positional) takes every token after its first value verbatim, for exec-style wrappers like `tool run cmd --flag`.
 - Help customization: `Command.longAbout` (shown for `--help` only), `Command.beforeHelp` / `Command.afterHelp` (text above/below the
