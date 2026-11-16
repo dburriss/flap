@@ -26,7 +26,9 @@ module Arg =
           Requires = []
           ConflictsWith = []
           RequiredUnless = []
-          Group = [] }
+          Group = []
+          AllowHyphenValues = false
+          TrailingVarArg = false }
 
     let short (c: char) (a: Arg) = { a with Short = Some c }
     let long (l: string) (a: Arg) = { a with Long = Some l }
@@ -65,6 +67,20 @@ module Arg =
 
     /// Positional/option taking any number of values.
     let manyValues (a: Arg) = { a with Action = Append; MinValues = 1; MaxValues = System.Int32.MaxValue }
+
+    /// Allow the value of an option (the token right after it) or a positional to start with `-`.
+    /// For a positional, a dash-leading token is accepted as its value unless it is a known flag
+    /// (a trailingVarArg positional accepts known flags too).
+    let allowHyphenValues (a: Arg) = { a with AllowHyphenValues = true }
+
+    /// Last positional: after its first value, every remaining token is taken verbatim (no flag,
+    /// subcommand, help or version handling). Implies multi-value: if the arg is not already
+    /// multi-value (MaxValues > 1) it becomes Append with 1..Int32.MaxValue values.
+    let trailingVarArg (a: Arg) =
+        if a.MaxValues > 1 then
+            { a with TrailingVarArg = true }
+        else
+            { a with TrailingVarArg = true; Action = Append; MinValues = 1; MaxValues = System.Int32.MaxValue }
 
     let isPositional (a: Arg) = a.Index.IsSome
     let takesValue (a: Arg) =

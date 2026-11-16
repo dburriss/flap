@@ -62,6 +62,19 @@ module Command =
                 [ c.Name + ": positional indexes must be contiguous starting at 1" ]
             else
                 []
+        let trailing =
+            let last = positions |> List.sortDescending |> List.tryHead
+            c.Args
+            |> List.filter (fun a -> a.TrailingVarArg)
+            |> List.collect (fun a ->
+                (if a.Index.IsNone || a.Index <> last then
+                     [ c.Name + ": trailingVarArg arg '" + a.Id + "' must be the last positional" ]
+                 else
+                     [])
+                @ (if a.MaxValues <= 1 then
+                       [ c.Name + ": trailingVarArg arg '" + a.Id + "' must accept multiple values" ]
+                   else
+                       []))
         let noSpec =
             c.Args
             |> List.filter (fun a -> a.Index.IsNone && a.Short.IsNone && a.Long.IsNone)
@@ -71,7 +84,7 @@ module Command =
             @ (dups shorts |> List.map (fun d -> c.Name + ": duplicate short '-" + string d + "'"))
             @ (dups longs |> List.map (fun d -> c.Name + ": duplicate long '--" + d + "'"))
             @ (dups positions |> List.map (fun d -> c.Name + ": duplicate positional index " + string d))
-            @ refs @ positional @ noSpec
+            @ refs @ positional @ trailing @ noSpec
         mine @ (c.Subcommands |> List.collect check)
 
     /// Throw if the definition is invalid (use in tests / at startup, like clap's debug_assert).

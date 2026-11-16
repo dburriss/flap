@@ -383,3 +383,96 @@ let ``positional with default and min 2 given nothing is ok`` () =
         Command.create "c"
         |> Command.arg (Arg.create "p" |> Arg.positional 1 |> Arg.numArgs 2 4 |> Arg.defaultValue "x")
     Assert.True((Command.tryParse [] c).IsOk)
+
+// ---- allowHyphenValues / trailingVarArg ----
+
+let private optCmd hyphen =
+    let o = Arg.create "opt" |> Arg.long "opt"
+    Command.create "c"
+    |> Command.arg (if hyphen then Arg.allowHyphenValues o else o)
+    |> Command.arg (Arg.create "x" |> Arg.short 'x' |> Arg.flag)
+
+let private parseOk argv c =
+    match Command.tryParse argv c with
+    | Ok m -> m
+    | Error e -> failwithf "unexpected error: %s" (ParseError.render e)
+
+[<Fact>]
+let ``allowHyphenValues option takes short-looking value`` () =
+    Assert.Equal(Some "-x", Matches.tryString "opt" (parseOk [ "--opt"; "-x" ] (optCmd true)))
+
+[<Fact>]
+let ``allowHyphenValues option takes long-looking value`` () =
+    Assert.Equal(Some "--not-a-flag", Matches.tryString "opt" (parseOk [ "--opt"; "--not-a-flag" ] (optCmd true)))
+
+[<Fact>]
+let ``without allowHyphenValues option still errors`` () =
+    match Command.tryParse [ "--opt"; "-x" ] (optCmd false) with
+    | Error(MissingValue(_, _)) -> ()
+    | _ -> failwith "expected MissingValue"
+
+let private posCmd =
+    Command.create "c"
+    |> Command.arg (Arg.create "x" |> Arg.short 'x' |> Arg.flag)
+    |> Command.arg (Arg.create "p" |> Arg.positional 1 |> Arg.allowHyphenValues)
+
+[<Fact>]
+let ``allowHyphenValues positional accepts unknown dash token`` () =
+    Assert.Equal(Some "-foo", Matches.tryString "p" (parseOk [ "-foo" ] posCmd))
+    Assert.Equal(Some "--bar", Matches.tryString "p" (parseOk [ "--bar" ] posCmd))
+
+[<Fact>]
+let ``allowHyphenValues positional still recognises known flags`` () =
+    let m = parseOk [ "-x"; "v" ] posCmd
+    Assert.True(Matches.flag "x" m)
+    Assert.Equal(Some "v", Matches.tryString "p" m)
+
+let private trailCmd =
+    Command.create "tool"
+    |> Command.version "1.0"
+    |> Command.arg (Arg.create "verbose" |> Arg.long "verbose" |> Arg.flag)
+    |> Command.arg (Arg.create "cmd" |> Arg.positional 1 |> Arg.manyValues |> Arg.trailingVarArg)
+
+[<Fact>]
+let ``trailingVarArg takes everything after first value`` () =
+    let m = parseOk [ "--verbose"; "run"; "--flag"; "-x" ] trailCmd
+    Assert.True(Matches.flag "verbose" m)
+    Assert.Equal<string list>([ "run"; "--flag"; "-x" ], Matches.getMany "cmd" m)
+    let m2 = parseOk [ "run"; "--verbose" ] trailCmd
+    Assert.False(Matches.flag "verbose" m2)
+    Assert.Equal<string list>([ "run"; "--verbose" ], Matches.getMany "cmd" m2)
+
+[<Fact>]
+let ``trailingVarArg swallows help and version`` () =
+    let m = parseOk [ "run"; "--help"; "-h"; "--version"; "help" ] trailCmd
+    Assert.Equal<string list>([ "run"; "--help"; "-h"; "--version"; "help" ], Matches.getMany "cmd" m)
+
+[<Fact>]
+let ``trailingVarArg help before first value still shows help`` () =
+    match Command.tryParse [ "--help" ] trailCmd with
+    | Error(DisplayHelp _) -> ()
+    | _ -> failwith "expected help"
+
+[<Fact>]
+let ``trailingVarArg double dash before first value is separator`` () =
+    let m = parseOk [ "--"; "--verbose"; "a" ] trailCmd
+    Assert.False(Matches.flag "verbose" m)
+    Assert.Equal<string list>([ "--verbose"; "a" ], Matches.getMany "cmd" m)
+
+[<Fact>]
+let ``trailingVarArg double dash after first value is kept`` () =
+    let m = parseOk [ "run"; "--"; "x" ] trailCmd
+    Assert.Equal<string list>([ "run"; "--"; "x" ], Matches.getMany "cmd" m)
+
+[<Fact>]
+let ``trailingVarArg rejected on non-last positional`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (Arg.create "a" |> Arg.positional 1 |> Arg.trailingVarArg)
+        |> Command.arg (Arg.create "b" |> Arg.positional 2)
+    Assert.NotEmpty(Command.check c)
+
+[<Fact>]
+let ``trailingVarArg rejected on single-value positional`` () =
+    let a = { (Arg.create "a" |> Arg.positional 1) with TrailingVarArg = true }
+    Assert.NotEmpty(Command.check (Command.create "c" |> Command.arg a))

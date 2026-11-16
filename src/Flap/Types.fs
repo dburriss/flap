@@ -39,7 +39,9 @@ type Arg =
       Requires: string list
       ConflictsWith: string list
       RequiredUnless: string list
-      Group: string list }
+      Group: string list
+      AllowHyphenValues: bool
+      TrailingVarArg: bool }
 
 /// A named set of arguments.
 type ArgGroup =

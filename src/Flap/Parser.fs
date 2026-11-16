@@ -130,7 +130,7 @@ module Parser =
                     Ok(st, rest)
                 else
                     match rest with
-                    | v :: tl when not (looksLikeFlag v) ->
+                    | v :: tl when not (looksLikeFlag v) || (a.AllowHyphenValues && taken = 0 && first.IsNone) ->
                         match addValue st a CommandLine v with
                         | Ok st -> more st (taken + 1) tl
                         | Error e -> Error e
@@ -153,9 +153,45 @@ module Parser =
         let helpFor long =
             DisplayHelp(Help.render path cmd globals long)
 
+        let nextSlot (st: State) =
+            positionals
+            |> List.tryFind (fun p ->
+                let n = Map.tryFind p.Id st.Vals |> Option.defaultValue [] |> List.length
+                n < p.MaxValues)
+
+        let isKnownFlag (tok: string) =
+            if tok.StartsWith "--" then
+                let body = tok.Substring 2
+                let name = (match body.IndexOf '=' with | -1 -> body | i -> body.Substring(0, i))
+                (findLong name).IsSome
+            else
+                (findShort tok.[1]).IsSome
+
+        // A dash-leading token that the next positional claims via allowHyphenValues.
+        let hyphenPositional (st: State) (tok: string) =
+            looksLikeFlag tok
+            && (match nextSlot st with
+                | Some p -> p.AllowHyphenValues && (p.TrailingVarArg || not (isKnownFlag tok))
+                | None -> false)
+
+        let trailing = positionals |> List.tryLast |> Option.filter (fun p -> p.TrailingVarArg)
+
         let rec loop (st: State) (tokens: string list) : Result<State, ParseError> =
             match tokens with
             | [] -> Ok st
+            | tok :: rest when (match trailing with
+                                | Some p -> Map.containsKey p.Id st.Vals
+                                | None -> false) ->
+                let p = trailing.Value
+                let n = Map.tryFind p.Id st.Vals |> Option.defaultValue [] |> List.length
+                if n >= p.MaxValues then
+                    Error(UnknownArgument(tok, None, usage))
+                else
+                    match addValue st p CommandLine tok with
+                    | Ok st -> loop st rest
+                    | Error e -> Error e
+            | tok :: rest when not st.ForcePositional && hyphenPositional st tok && tok <> "--" ->
+                handlePositional st tok rest
             | "--" :: rest when not st.ForcePositional -> loop { st with ForcePositional = true } rest
             | tok :: rest when not st.ForcePositional && tok.StartsWith "--" ->
                 let body = tok.Substring 2

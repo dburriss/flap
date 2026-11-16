@@ -29,6 +29,8 @@ let verbosity = m |> Matches.count "verbose"
 - Supports flags, counts, options, append/multi-value, delimiters, positionals, subcommands, global args, env vars,
   defaults, possible values, validators, conflicts/requires, groups, external subcommands, help/version,
   did-you-mean suggestions and completions (`Completions.generate Bash|Zsh|Fish|PowerShell cmd`).
+- `Arg.allowHyphenValues` lets an option/positional take a value starting with `-`; `Arg.trailingVarArg` (last, multi-value
+  positional) takes every token after its first value verbatim, for exec-style wrappers like `tool run cmd --flag`.
 - AOT: reference with `--reflectionfree` in your app (see `samples/Flap.Sample`) to avoid F# `%A` reflection in generated `ToString`.
 
 ## Development
