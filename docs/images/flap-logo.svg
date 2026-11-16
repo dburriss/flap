@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120" role="img" aria-labelledby="t">
   <title id="t">flap</title>
   <rect x="4" y="4" width="352" height="112" rx="22" fill="#14151c"/>
-  <!-- mark: a --flag piped (|>) into a parsed value -->
+  <!-- mark: a flag piped (|>) into a parsed value -->
   <g fill="none" stroke="#8b9dff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M24 60 H38"/>
     <path d="M46 60 H60"/>
