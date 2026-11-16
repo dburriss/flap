@@ -197,3 +197,30 @@ let ``completions generate for all shells`` () =
         let s = Completions.generate sh app
         Assert.Contains((if sh = Fish then "-l verbose" else "--verbose"), s)
         Assert.Contains("build", s)
+
+[<Fact>]
+let ``getWith returns parsed value when present and valid`` () =
+    let m = ok [ "--name=42"; "f" ]
+    Assert.Equal(Ok 42, Matches.getWith Value.int "name" m)
+
+[<Fact>]
+let ``getWith errors when absent`` () =
+    let m = ok [ "f" ]
+    Assert.Equal(Error "no value for argument 'name'", Matches.getWith Value.int "name" m)
+
+[<Fact>]
+let ``getWith errors when value does not parse`` () =
+    let m = ok [ "--name=abc"; "f" ]
+    Assert.Equal(Error "invalid value 'abc' for 'name': not a valid integer", Matches.getWith Value.int "name" m)
+
+[<Fact>]
+let ``getInt getBool getFloat parse present values`` () =
+    Assert.Equal(Ok 7, Matches.getInt "name" (ok [ "--name=7"; "f" ]))
+    Assert.Equal(Ok true, Matches.getBool "name" (ok [ "--name=yes"; "f" ]))
+    Assert.Equal(Ok 1.5, Matches.getFloat "name" (ok [ "--name=1.5"; "f" ]))
+
+[<Fact>]
+let ``getInt getBool getFloat error when absent or invalid`` () =
+    Assert.Equal(Error "no value for argument 'name'", Matches.getInt "name" (ok [ "f" ]))
+    Assert.Equal(Error "invalid value 'x' for 'name': expected true or false", Matches.getBool "name" (ok [ "--name=x"; "f" ]))
+    Assert.Equal(Error "invalid value 'x' for 'name': not a valid number", Matches.getFloat "name" (ok [ "--name=x"; "f" ]))

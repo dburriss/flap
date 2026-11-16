@@ -80,6 +80,17 @@ module Matches =
     let tryBool id m = tryGetWith Value.bool id m |> Result.defaultValue None
     let tryFloat id m = tryGetWith Value.float id m |> Result.defaultValue None
 
+    /// Required typed access using an explicit parser. Error if absent or if the value does not parse.
+    let getWith (parse: string -> Result<'T, string>) (id: string) (m: Matches) : Result<'T, string> =
+        tryGetWith parse id m
+        |> Result.bind (function
+            | Some v -> Ok v
+            | None -> Error("no value for argument '" + id + "'"))
+
+    let getInt id m = getWith Value.int id m
+    let getBool id m = getWith Value.bool id m
+    let getFloat id m = getWith Value.float id m
+
     /// Value of a required/defaulted arg; throws if absent (like clap's `get_one().unwrap()`).
     let getString (id: string) (m: Matches) : string =
         match tryString id m with
