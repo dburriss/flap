@@ -183,3 +183,22 @@ let ``nushell escapes quotes and backslashes and keeps help on one line`` () =
 let ``nushell hides hidden args`` () =
     Assert.DoesNotContain("secret-opt", nu)
     Assert.DoesNotContain("hiddenval", nu)
+
+let private multilineApp =
+    Command.create "app"
+    |> Command.arg (Arg.create "mode" |> Arg.long "mode" |> Arg.help "say \"hi\"\nsecond line\r\nthird" |> Arg.possibleValues [ "fast"; "slow" ])
+    |> Command.arg (Arg.create "plain" |> Arg.long "plain" |> Arg.help "one\ntwo")
+    |> Command.subcommand (Command.create "deploy" |> Command.about "Deploy it\nsecond line")
+
+[<Fact>]
+let ``fish keeps multi-line help on one line`` () =
+    let s = Completions.generate Fish multilineApp
+    // fish treats every output line as a candidate, so a raw newline inside a description leaks
+    // its continuation line as a bogus completion
+    let structural (l: string) =
+        l = "" || l.StartsWith "complete " || l.StartsWith "function " || l.StartsWith "end" || l.StartsWith " "
+    for l in lines s do
+        Assert.True(structural l, "continuation line leaked: '" + l + "'\n---\n" + s)
+    assertLine (hasAll [ "-l mode"; "-d 'say \"hi\" second line third'" ]) s "option help flattened"
+    assertLine (hasAll [ "-l plain"; "-d 'one two'" ]) s "plain option help flattened"
+    assertLine (hasAll [ "'deploy'"; "-d 'Deploy it second line'" ]) s "subcommand about flattened"

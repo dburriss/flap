@@ -30,3 +30,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Environment variable values for flag args (`SetTrue`/`SetFalse`) are parsed as booleans, so `MYAPP_DEBUG=1` now reads as true.
 - An invalid environment variable value is now reported as an `InvalidValue` error naming the variable, instead of being silently dropped.
 - `Arg.numArgs` minimum is now enforced for positional arguments (`TooFewValues`).
+- Fish completions no longer leak the continuation lines of multi-line help text as bogus candidates; help is collapsed to a single line.

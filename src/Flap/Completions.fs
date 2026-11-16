@@ -107,6 +107,9 @@ module Completions =
     /// fish single-quoted string.
     let private fsq (s: string) = "'" + s.Replace("\\", "\\\\").Replace("'", "\\'") + "'"
 
+    /// Collapse help text to a single line (shells treat each output line as a separate candidate).
+    let private oneLine (s: string) = s.Replace("\r", "").Replace("\n", " ").Trim()
+
     /// fish double-quoted string.
     let private fdq (s: string) =
         "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("$", "\\$") + "\""
@@ -256,8 +259,8 @@ module Completions =
         let dirs = " -a " + fsq "(__fish_complete_directories (commandline -ct))"
         let desc (h: string option) =
             match h with
-            | Some h -> " -d " + fsq h
-            | None -> ""
+            | Some h when oneLine h <> "" -> " -d " + fsq (oneLine h)
+            | _ -> ""
         let helper =
             [ "function " + fn
               "    set -l toks (commandline -opc)"
@@ -457,8 +460,6 @@ module Completions =
         "\""
         + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n")
         + "\""
-
-    let private oneLine (s: string) = s.Replace("\r", "").Replace("\n", " ").Trim()
 
     let private nushell (cmd: Command) =
         let ctxs = all cmd
