@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Value-aware shell completions: possible values complete for options and positionals, and the new `Arg.valueHint` (`ValueHint`: `AnyPath`, `FilePath`, `DirPath`, `Other`) completes file system paths.
 - Nushell completions (`Completions.generate Nushell`), generated as `extern` definitions with `@` completers.
 - `mise.toml` pinning nushell, powershell and fish for smoke-testing the generated completion scripts.
+- Release automation: `./publish.sh` bumps the version, updates the changelog and tags; the tag-triggered `publish-nuget.yml` workflow publishes the `Flap` package to NuGet through Trusted Publishing. The package now carries its metadata and README.
 
 ### Changed
 
