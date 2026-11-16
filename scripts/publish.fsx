@@ -3,11 +3,13 @@
 // =================================================================================
 // Publish Script
 // =================================================================================
-// This script automates the release process for a .NET CLI tool packaged as a
-// NuGet package (dotnet tool) with GitHub Release binaries.
+// This script automates the release of a .NET project that is published to NuGet and
+// GitHub Releases by tag-triggered CI. It never talks to nuget.org or GitHub itself:
+// pushing the v* tag is what starts the workflows.
 //
 // Normal release flow (when Unreleased changes exist):
-// 1. Reads the current version from the target .fsproj
+// 1. Reads the current version from the --fsproj file (or a Directory.Build.props that
+//    holds <Version> and <PackageReleaseNotes> in its first <PropertyGroup>)
 // 2. Extracts the "Unreleased" section from CHANGELOG.md
 // 3. Runs a preflight release build and test pass
 // 4. Prompts the user to select the next version (Major, Minor, or Patch)
@@ -15,16 +17,12 @@
 //    so entries roll forward into the eventual stable release):
 //    - Moves "Unreleased" changes to a new versioned section
 //    - Creates a new empty "Unreleased" section
-// 6. Updates the .fsproj via XML APIs:
+// 6. Updates that file via XML APIs:
 //    - Increments the <Version> tag
 //    - Updates <PackageReleaseNotes> with escaped text content
 // 7. Runs a final release build before any git operations
 // 8. Stages, commits, and tags the release in Git
 // 9. Optionally pushes the changes and tag to the remote repository
-//
-// Pushing the tag is what triggers the CI workflows (publish-nuget.yml,
-// publish-gh.yml) — this script does not talk to nuget.org or the GitHub
-// Releases API directly. See publish-script.md for the full pipeline.
 //
 // Retag flow (when there are no Unreleased changes):
 // 1. Shows the latest commit hash and message
@@ -106,6 +104,12 @@ let fsprojPath = Path.Combine(rootPath, getArg "--fsproj")
 let changelogPath = Path.Combine(rootPath, "CHANGELOG.md")
 let solutionPath = Path.Combine(rootPath, getArg "--solution")
 
+// Tests run on Microsoft.Testing.Platform (.NET 10, opted in through the "test" runner in
+// global.json): the solution is passed with --solution, and --nologo is left out because it
+// makes the test host report "Zero tests ran" (exit 5).
+let testArguments = ["test"; "--solution"; solutionPath; "-c"; "Release"; "--no-build"]
+let testCommandDisplay = sprintf "dotnet test --solution \"%s\" -c Release --no-build" solutionPath
+
 printfn "Checking files..."
 if not (File.Exists fsprojPath) then failwithf "Project file not found: %s" fsprojPath
 if not (File.Exists changelogPath) then failwithf "Changelog not found: %s" changelogPath
@@ -169,11 +173,11 @@ printfn ""
 
 let runReleaseBuild () =
     printfn "Running release build..."
-    runProcess "dotnet" ["build"; solutionPath; "-c"; "Release"; "--nologo"] rootPath |> ignore
+    runProcess "dotnet" ["build"; solutionPath; "-c"; "Release"; "--nologo"; "--no-incremental"] rootPath |> ignore
 
 let runReleaseTests () =
     printfn "Running release tests..."
-    runProcess "dotnet" ["test"; solutionPath; "-c"; "Release"; "--no-build"; "--nologo"] rootPath |> ignore
+    runProcess "dotnet" testArguments rootPath |> ignore
 
 // ---------------------------------------------------------------------------
 // Retag path — no unreleased changes
@@ -196,8 +200,8 @@ if unreleasedContent.IsEmpty then
         exit 1
 
     if isDryRun then
-        printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
-        printfn "[Dry Run] Would run: dotnet test \"%s\" -c Release --no-build --nologo" solutionPath
+        printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
+        printfn "[Dry Run] Would run: %s" testCommandDisplay
     else
         runReleaseBuild ()
         runReleaseTests ()
@@ -242,8 +246,8 @@ if unreleasedContent.IsEmpty then
 // ---------------------------------------------------------------------------
 
 if isDryRun then
-    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
-    printfn "[Dry Run] Would run: dotnet test \"%s\" -c Release --no-build --nologo" solutionPath
+    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
+    printfn "[Dry Run] Would run: %s" testCommandDisplay
 else
     runReleaseBuild ()
     runReleaseTests ()
@@ -287,8 +291,6 @@ let newVersionString =
 
 printfn "New Version: %s" newVersionString
 
-// Prereleases (e.g. 0.7.0-beta1) keep all entries under [Unreleased] so they roll
-// forward into the eventual stable release. Only stable versions rewrite CHANGELOG.md.
 let isPrerelease = newVersionString.Contains('-')
 
 let releaseNotes =
@@ -335,12 +337,11 @@ else
         File.WriteAllLines(changelogPath, newChangelogLines)
 
 if isDryRun then
-    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
+    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
 else
     printfn "Running final release build..."
     runReleaseBuild ()
 
-// For prereleases we did not touch CHANGELOG.md, so only stage the fsproj.
 let filesToStage =
     if isPrerelease then [fsprojPath]
     else [fsprojPath; changelogPath]
