@@ -17,6 +17,10 @@ Flap: a clap-style, pipe-friendly CLI parser for F#. No attributes, no reflectio
 - Keep the parsing core pure (`Command.tryParse*` returns `Result`); console I/O belongs only in `Command.parse`.
 - Add tests for behaviour changes; update `README.md` when the public API changes.
 
+## Branching
+- Work directly on `main`. Don't create branches or worktrees without asking first.
+- If a change seems experimental or risky, ask permission before branching.
+
 ## Commits & changelog
 - Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, ...; `!` or `BREAKING CHANGE:` for breaking changes).
 - Record every user- or developer-facing change in `CHANGELOG.md` under `## [Unreleased]`, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (Added / Changed / Deprecated / Removed / Fixed / Security).
