@@ -14,6 +14,16 @@
   <a href="https://github.com/dburriss/flap/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dburriss/flap" alt="License"></a>
 </p>
 
+## What it does
+
+- **Flags, counts, options and positionals.** Short and long forms, repeated flags as counts, multi-value args. See the [API reference](docs/reference/api.md).
+- **Subcommands.** Nested commands, global args, aliases and external subcommands. See [Exec-style wrappers](docs/how-to/exec-style-wrappers.md).
+- **Validation.** Defaults, env vars, possible values, validators, conflicts, requires and groups.
+- **Help and version.** Generated `--help`/`--version`, did-you-mean suggestions and room to customize. See [Customize help](docs/how-to/customize-help.md).
+- **Shell completions.** Bash, Zsh, Fish, PowerShell and Nushell, value-aware. See [Shell completions](docs/how-to/shell-completions.md).
+- **Pure core.** `Command.tryParse*` returns a `Result` with no console I/O; only `Command.parse` prints and exits.
+- **Native AOT and Fable.** Reflection-free, so it publishes as Native AOT and runs under Fable. See [AOT and Fable](docs/how-to/aot-and-fable.md).
+
 ## Get started
 
 Reference the `Flap` library from an F# console project (.NET 10 SDK required; the library also targets `netstandard2.1`), then define a command and parse:
@@ -39,16 +49,6 @@ let main argv =
 ```
 
 The [getting started tutorial](docs/tutorials/getting-started.md) walks through building a complete CLI.
-
-## What it does
-
-- **Flags, counts, options and positionals.** Short and long forms, repeated flags as counts, multi-value args. See the [API reference](docs/reference/api.md).
-- **Subcommands.** Nested commands, global args, aliases and external subcommands. See [Exec-style wrappers](docs/how-to/exec-style-wrappers.md).
-- **Validation.** Defaults, env vars, possible values, validators, conflicts, requires and groups.
-- **Help and version.** Generated `--help`/`--version`, did-you-mean suggestions and room to customize. See [Customize help](docs/how-to/customize-help.md).
-- **Shell completions.** Bash, Zsh, Fish, PowerShell and Nushell, value-aware. See [Shell completions](docs/how-to/shell-completions.md).
-- **Pure core.** `Command.tryParse*` returns a `Result` with no console I/O; only `Command.parse` prints and exits.
-- **Native AOT and Fable.** Reflection-free, so it publishes as Native AOT and runs under Fable. See [AOT and Fable](docs/how-to/aot-and-fable.md).
 
 ## Documentation
 
