@@ -41,7 +41,8 @@ type Arg =
       RequiredUnless: string list
       Group: string list
       AllowHyphenValues: bool
-      TrailingVarArg: bool }
+      TrailingVarArg: bool
+      HelpHeading: string option }
 
 /// A named set of arguments.
 type ArgGroup =
@@ -55,6 +56,9 @@ type Command =
     { Name: string
       VersionText: string option
       About: string option
+      LongAbout: string option
+      BeforeHelp: string option
+      AfterHelp: string option
       Author: string option
       Args: Arg list
       Subcommands: Command list

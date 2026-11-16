@@ -476,3 +476,70 @@ let ``trailingVarArg rejected on non-last positional`` () =
 let ``trailingVarArg rejected on single-value positional`` () =
     let a = { (Arg.create "a" |> Arg.positional 1) with TrailingVarArg = true }
     Assert.NotEmpty(Command.check (Command.create "c" |> Command.arg a))
+
+// ---- help customization ----
+
+let private helpText argv cmd =
+    match Command.tryParse argv cmd with
+    | Error(DisplayHelp t) -> t
+    | _ -> failwith "expected help"
+
+let private baseHelpCmd =
+    Command.create "h"
+    |> Command.about "short about"
+    |> Command.arg (Arg.create "plain" |> Arg.long "plain" |> Arg.help "Plain opt")
+    |> Command.arg (Arg.create "net" |> Arg.long "net" |> Arg.help "Net opt")
+
+[<Fact>]
+let ``longAbout shown only for --help`` () =
+    let c = baseHelpCmd |> Command.longAbout "much longer about"
+    let l = helpText [ "--help" ] c
+    let s = helpText [ "-h" ] c
+    Assert.Contains("much longer about", l)
+    Assert.DoesNotContain("short about", l)
+    Assert.Contains("short about", s)
+    Assert.DoesNotContain("much longer about", s)
+
+[<Fact>]
+let ``longAbout falls back to about`` () =
+    Assert.Contains("short about", helpText [ "--help" ] baseHelpCmd)
+
+[<Fact>]
+let ``beforeHelp above and afterHelp below`` () =
+    let c = baseHelpCmd |> Command.beforeHelp "BEFORE" |> Command.afterHelp "AFTER"
+    let t = helpText [ "-h" ] c
+    Assert.StartsWith("BEFORE\n", t)
+    Assert.True(t.IndexOf "BEFORE" < t.IndexOf "Usage:")
+    Assert.EndsWith("\n\nAFTER\n", t)
+    Assert.True(t.IndexOf "Options:" < t.IndexOf "AFTER")
+
+[<Fact>]
+let ``helpHeading creates custom section`` () =
+    let c =
+        baseHelpCmd
+        |> Command.arg (Arg.create "host" |> Arg.long "host" |> Arg.help "Host" |> Arg.helpHeading "Network")
+        |> Command.arg (Arg.create "port" |> Arg.long "port" |> Arg.helpHeading "Network")
+        |> Command.arg (Arg.create "secret" |> Arg.long "secret" |> Arg.helpHeading "Network" |> Arg.hidden)
+    let t = helpText [ "-h" ] c
+    let net = t.IndexOf "Network:"
+    let opts = t.IndexOf "Options:"
+    Assert.True(net >= 0 && opts >= 0)
+    let netSection, optSection =
+        if net < opts then t.Substring(net, opts - net), t.Substring opts
+        else t.Substring net, t.Substring(opts, net - opts)
+    Assert.Contains("--host", netSection)
+    Assert.Contains("--port", netSection)
+    Assert.DoesNotContain("--plain", netSection)
+    Assert.Contains("--plain", optSection)
+    Assert.DoesNotContain("--host", optSection)
+    Assert.DoesNotContain("--port", optSection)
+    Assert.DoesNotContain("--secret", t)
+
+[<Fact>]
+let ``unchanged help without new fields`` () =
+    let plain = helpText [ "--help" ] baseHelpCmd
+    let withNone = helpText [ "--help" ] (baseHelpCmd |> fun c -> { c with LongAbout = None; BeforeHelp = None; AfterHelp = None })
+    Assert.Equal(plain, withNone)
+    Assert.Equal(
+        "short about\n\nUsage: h [OPTIONS]\n\nOptions:\n      --plain <PLAIN>  Plain opt\n      --net <NET>      Net opt\n  -h, --help           Print help (see a summary with '-h')\n",
+        plain)

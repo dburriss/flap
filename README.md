@@ -31,6 +31,8 @@ let verbosity = m |> Matches.count "verbose"
   did-you-mean suggestions and completions (`Completions.generate Bash|Zsh|Fish|PowerShell cmd`).
 - `Arg.allowHyphenValues` lets an option/positional take a value starting with `-`; `Arg.trailingVarArg` (last, multi-value
   positional) takes every token after its first value verbatim, for exec-style wrappers like `tool run cmd --flag`.
+- Help customization: `Command.longAbout` (shown for `--help` only), `Command.beforeHelp` / `Command.afterHelp` (text above/below the
+  help sections, e.g. examples) and `Arg.helpHeading` (groups options under a custom section instead of `Options:`).
 - AOT: reference with `--reflectionfree` in your app (see `samples/Flap.Sample`) to avoid F# `%A` reflection in generated `ToString`.
 
 ## Development

@@ -28,7 +28,8 @@ module Arg =
           RequiredUnless = []
           Group = []
           AllowHyphenValues = false
-          TrailingVarArg = false }
+          TrailingVarArg = false
+          HelpHeading = None }
 
     let short (c: char) (a: Arg) = { a with Short = Some c }
     let long (l: string) (a: Arg) = { a with Long = Some l }
@@ -39,6 +40,7 @@ module Arg =
     let required (a: Arg) = { a with Required = true }
     let defaultValue (v: string) (a: Arg) = { a with Default = Some v }
     let env (name: string) (a: Arg) = { a with Env = Some name }
+    let helpHeading (h: string) (a: Arg) = { a with HelpHeading = Some h }
     let hidden (a: Arg) = { a with Hidden = true }
     /// `global` is reserved in F#; propagates the arg to all subcommands.
     let global' (a: Arg) = { a with Global = true }

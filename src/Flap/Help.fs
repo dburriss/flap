@@ -89,13 +89,19 @@ module Help =
         let visible = cmd.Args |> List.filter (fun a -> not a.Hidden)
         let positionals =
             visible |> List.filter (fun a -> a.Index.IsSome) |> List.sortBy (fun a -> a.Index.Value)
-        let options =
+        let allOptions =
             (visible |> List.filter (fun a -> a.Index.IsNone))
             @ (globals |> List.filter (fun a -> not a.Hidden))
             @ (builtins cmd |> List.map (fun a -> if a.Id = "help" then builtinHelp long else a))
+        let options = allOptions |> List.filter (fun a -> a.HelpHeading.IsNone)
+        let headings = allOptions |> List.choose (fun a -> a.HelpHeading) |> List.distinct
         let subs = cmd.Subcommands |> List.filter (fun s -> not s.HiddenCommand)
+        let about = if long then (match cmd.LongAbout with Some _ as l -> l | None -> cmd.About) else cmd.About
         let sections =
-            [ (match cmd.About with
+            [ (match cmd.BeforeHelp with
+               | Some b -> [ b; "" ]
+               | None -> [])
+              (match about with
                | Some a -> [ a; "" ]
                | None -> [])
               [ usage path cmd; "" ]
@@ -110,7 +116,14 @@ module Help =
               (if positionals.IsEmpty then []
                else "Arguments:" :: table (positionals |> List.map (fun a -> argLabel a, annotate a)) @ [ "" ])
               (if options.IsEmpty then []
-               else "Options:" :: table (options |> List.map (fun a -> argLabel a, annotate a)) @ [ "" ]) ]
+               else "Options:" :: table (options |> List.map (fun a -> argLabel a, annotate a)) @ [ "" ])
+              (headings
+               |> List.collect (fun h ->
+                   let xs = allOptions |> List.filter (fun a -> a.HelpHeading = Some h)
+                   (h + ":") :: table (xs |> List.map (fun a -> argLabel a, annotate a)) @ [ "" ]))
+              (match cmd.AfterHelp with
+               | Some a -> [ a; "" ]
+               | None -> []) ]
         (sections |> List.concat |> String.concat "\n").TrimEnd() + "\n"
 
     let versionText (path: string) (cmd: Command) : string =

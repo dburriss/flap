@@ -8,6 +8,9 @@ module Command =
         { Name = name
           VersionText = None
           About = None
+          LongAbout = None
+          BeforeHelp = None
+          AfterHelp = None
           Author = None
           Args = []
           Subcommands = []
@@ -22,6 +25,9 @@ module Command =
 
     let version (v: string) (c: Command) = { c with VersionText = Some v }
     let about (a: string) (c: Command) = { c with About = Some a }
+    let longAbout (a: string) (c: Command) = { c with LongAbout = Some a }
+    let beforeHelp (a: string) (c: Command) = { c with BeforeHelp = Some a }
+    let afterHelp (a: string) (c: Command) = { c with AfterHelp = Some a }
     let author (a: string) (c: Command) = { c with Author = Some a }
     let arg (a: Arg) (c: Command) = { c with Args = c.Args @ [ a ] }
     let args (xs: Arg list) (c: Command) = { c with Args = c.Args @ xs }
