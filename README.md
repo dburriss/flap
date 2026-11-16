@@ -23,6 +23,9 @@ let verbosity = m |> Matches.count "verbose"
 - `Command.tryParse` / `Command.tryParseWith` are pure and return `Result<Matches, ParseError>` (use these under Fable).
 - `Command.parseWith` takes stdout/stderr/exit callbacks; `Command.parse` uses the console (not under Fable).
 - Typed values use explicit parsers (`Value.int`, `Value.oneOf`, ...) via `Matches.tryGetWith`.
+- `Matches.tryInt` / `tryBool` / `tryFloat` return `Result<'T option, string>` (`Ok None` if absent, `Error` if the value
+  does not parse); `getInt` / `getBool` / `getFloat` are the required variants returning `Result<'T, string>`:
+  `match Matches.tryInt "times" m with Ok(Some n) -> ... | Ok None -> ... | Error e -> eprintfn "%s" e`.
 - Supports flags, counts, options, append/multi-value, delimiters, positionals, subcommands, global args, env vars,
   defaults, possible values, validators, conflicts/requires, groups, external subcommands, help/version,
   did-you-mean suggestions and completions (`Completions.generate Bash|Zsh|Fish|PowerShell cmd`).

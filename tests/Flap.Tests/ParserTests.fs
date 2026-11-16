@@ -135,7 +135,7 @@ let ``conflicts, requires, groups`` () =
 let ``env fallback`` () =
     let c = Command.create "c" |> Command.arg (Arg.create "p" |> Arg.long "p" |> Arg.env "P")
     let m = Command.tryParseWith (fun n -> if n = "P" then Some "7" else None) [] c |> Result.defaultWith (fun _ -> failwith "x")
-    Assert.Equal(Some 7, Matches.tryInt "p" m)
+    Assert.Equal(Ok(Some 7), Matches.tryInt "p" m)
     Assert.Equal(Some EnvVar, Matches.valueSource "p" m)
 
 [<Fact>]
@@ -224,3 +224,29 @@ let ``getInt getBool getFloat error when absent or invalid`` () =
     Assert.Equal(Error "no value for argument 'name'", Matches.getInt "name" (ok [ "f" ]))
     Assert.Equal(Error "invalid value 'x' for 'name': expected true or false", Matches.getBool "name" (ok [ "--name=x"; "f" ]))
     Assert.Equal(Error "invalid value 'x' for 'name': not a valid number", Matches.getFloat "name" (ok [ "--name=x"; "f" ]))
+
+[<Fact>]
+let ``tryInt tryBool tryFloat return Error for invalid values`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (Arg.create "n" |> Arg.long "n")
+    let m = Command.tryParse [ "--n"; "abc" ] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.True(Result.isError (Matches.tryInt "n" m))
+    Assert.True(Result.isError (Matches.tryBool "n" m))
+    Assert.True(Result.isError (Matches.tryFloat "n" m))
+
+[<Fact>]
+let ``tryInt tryBool tryFloat return Ok for valid or absent values`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (Arg.create "i" |> Arg.long "i")
+        |> Command.arg (Arg.create "b" |> Arg.long "b")
+        |> Command.arg (Arg.create "f" |> Arg.long "f")
+        |> Command.arg (Arg.create "none" |> Arg.long "none")
+    let m = Command.tryParse [ "--i"; "5"; "--b"; "true"; "--f"; "1.5" ] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.Equal(Ok(Some 5), Matches.tryInt "i" m)
+    Assert.Equal(Ok(Some true), Matches.tryBool "b" m)
+    Assert.Equal(Ok(Some 1.5), Matches.tryFloat "f" m)
+    Assert.Equal(Ok None, Matches.tryInt "none" m)
+    Assert.Equal(Ok None, Matches.tryBool "none" m)
+    Assert.Equal(Ok None, Matches.tryFloat "none" m)

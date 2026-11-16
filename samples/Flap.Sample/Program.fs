@@ -12,8 +12,13 @@ let main argv =
 
     let m = cmd |> Command.parse (List.ofArray argv)
     let name = Matches.getString "name" m
-    let times = Matches.tryInt "times" m |> Option.defaultValue 1
-    for _ in 1..times do
-        let msg = "Hello, " + name + "!"
-        System.Console.WriteLine(if Matches.flag "loud" m then msg.ToUpperInvariant() else msg)
-    0
+    match Matches.tryInt "times" m with
+    | Error e ->
+        System.Console.Error.WriteLine("error: " + e)
+        2
+    | Ok t ->
+        let times = t |> Option.defaultValue 1
+        for _ in 1..times do
+            let msg = "Hello, " + name + "!"
+            System.Console.WriteLine(if Matches.flag "loud" m then msg.ToUpperInvariant() else msg)
+        0

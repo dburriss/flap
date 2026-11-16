@@ -76,9 +76,10 @@ module Matches =
             | _, Error e -> Error("invalid value '" + s + "' for '" + id + "': " + e)
         getMany id m |> List.fold folder (Ok []) |> Result.map List.rev
 
-    let tryInt id m = tryGetWith Value.int id m |> Result.defaultValue None
-    let tryBool id m = tryGetWith Value.bool id m |> Result.defaultValue None
-    let tryFloat id m = tryGetWith Value.float id m |> Result.defaultValue None
+    /// Optional typed access: Ok None if absent, Error if present but not parseable.
+    let tryInt (id: string) (m: Matches) : Result<int option, string> = tryGetWith Value.int id m
+    let tryBool (id: string) (m: Matches) : Result<bool option, string> = tryGetWith Value.bool id m
+    let tryFloat (id: string) (m: Matches) : Result<float option, string> = tryGetWith Value.float id m
 
     /// Required typed access using an explicit parser. Error if absent or if the value does not parse.
     let getWith (parse: string -> Result<'T, string>) (id: string) (m: Matches) : Result<'T, string> =
