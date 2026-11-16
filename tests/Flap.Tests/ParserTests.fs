@@ -297,3 +297,54 @@ let ``env count flag uses numeric value`` () =
     let c = Command.create "c" |> Command.arg (Arg.create "v" |> Arg.long "v" |> Arg.count |> Arg.env "V")
     let m = Command.tryParseWith (fun _ -> Some "3") [] c |> Result.defaultWith (fun _ -> failwith "x")
     Assert.Equal(3, Matches.count "v" m)
+
+let private envOf (k: string) (v: string) = fun n -> if n = k then Some v else None
+
+let private envReason (r: Result<Matches, ParseError>) =
+    match r with
+    | Error(InvalidValue(_, _, reason, _)) -> Some reason
+    | _ -> None
+
+[<Fact>]
+let ``invalid env value failing validator is an error naming the env var`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "n" |> Arg.long "n" |> Arg.env "MYAPP_N" |> Arg.validate (Value.int >> Result.map ignore))
+    let r = Command.tryParseWith (envOf "MYAPP_N" "abc") [] c
+    match envReason r with
+    | Some reason -> Assert.Contains("MYAPP_N", reason)
+    | None -> failwith "expected InvalidValue"
+
+[<Fact>]
+let ``invalid env possible value is an error`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "m" |> Arg.long "m" |> Arg.env "MYAPP_M" |> Arg.possibleValues [ "a"; "b" ])
+    let r = Command.tryParseWith (envOf "MYAPP_M" "z") [] c
+    match envReason r with
+    | Some reason -> Assert.Contains("MYAPP_M", reason)
+    | None -> failwith "expected InvalidValue"
+
+[<Fact>]
+let ``unparseable env boolean for flag is an error`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "f" |> Arg.long "f" |> Arg.flag |> Arg.env "MYAPP_F")
+    let r = Command.tryParseWith (envOf "MYAPP_F" "maybe") [] c
+    match envReason r with
+    | Some reason -> Assert.Contains("MYAPP_F", reason)
+    | None -> failwith "expected InvalidValue"
+
+[<Fact>]
+let ``non-numeric env for count is an error`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "v" |> Arg.short 'v' |> Arg.count |> Arg.env "MYAPP_V")
+    let r = Command.tryParseWith (envOf "MYAPP_V" "lots") [] c
+    match envReason r with
+    | Some reason -> Assert.Contains("MYAPP_V", reason)
+    | None -> failwith "expected InvalidValue"
+
+[<Fact>]
+let ``valid env value still ok`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "n" |> Arg.long "n" |> Arg.env "MYAPP_N" |> Arg.validate (Value.int >> Result.map ignore))
+    let m = Command.tryParseWith (envOf "MYAPP_N" "5") [] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.Equal(Ok(Some 5), Matches.tryInt "n" m)
+
+[<Fact>]
+let ``command line overrides invalid env without error`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "n" |> Arg.long "n" |> Arg.env "MYAPP_N" |> Arg.validate (Value.int >> Result.map ignore))
+    let m = Command.tryParseWith (envOf "MYAPP_N" "abc") [ "--n"; "3" ] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.Equal(Ok(Some 3), Matches.tryInt "n" m)

@@ -296,65 +296,80 @@ module Parser =
             elif cmd.SubcommandRequired && st.Sub.IsNone then Error(MissingSubcommand usage)
             else Ok st
 
-        let finalize (st: State) : State =
-            // environment fallbacks, then defaults
-            let st =
-                allArgs
-                |> List.fold
-                    (fun (st: State) a ->
-                        if Map.containsKey a.Id st.Vals || Map.containsKey a.Id st.Src then st
-                        else
-                            match a.Env |> Option.bind env with
-                            | Some v when v <> "" ->
-                                // Flag-action args interpret the env value as a boolean
-                                // (Value.bool semantics) instead of storing the raw string.
-                                // SetTrue: truthy -> "true"; falsy -> "false".
-                                // SetFalse (clap semantic: truthy env means the flag is
-                                // "present"): truthy -> "false" (the flag's effect applies);
-                                // falsy -> nothing stored, so default/absence applies.
-                                // Count: a numeric env value N is stored as the count N.
-                                // Unparseable flag values keep the previous behaviour.
-                                let set (x: string) =
+        let finalize (st: State) : Result<State, ParseError> =
+            // environment fallbacks, then defaults. Invalid env values are errors.
+            let envErr (a: Arg) (name: string) (v: string) (reason: string) =
+                Error(InvalidValue(argDisplayName a, v, "from environment variable " + name + ": " + reason, usage))
+            let applyEnv (st: State) (a: Arg) : Result<State, ParseError> =
+                if Map.containsKey a.Id st.Vals || Map.containsKey a.Id st.Src then Ok st
+                else
+                    match a.Env with
+                    | None -> Ok st
+                    | Some name ->
+                        match env name with
+                        | Some v when v <> "" ->
+                            // Flag-action args interpret the env value as a boolean
+                            // (Value.bool semantics) instead of storing the raw string.
+                            // SetTrue: truthy -> "true"; falsy -> "false".
+                            // SetFalse (clap semantic: truthy env means the flag is
+                            // "present"): truthy -> "false"; falsy -> nothing stored.
+                            // Count: a numeric env value N is stored as the count N.
+                            let set (x: string) =
+                                Ok
                                     { st with
                                         Vals = Map.add a.Id [ x ] st.Vals
                                         Src = Map.add a.Id EnvVar st.Src }
-                                match a.Action with
-                                | SetTrue ->
-                                    match Value.bool v with
-                                    | Ok true -> set "true"
-                                    | Ok false -> set "false"
-                                    | Error _ -> st
-                                | SetFalse ->
-                                    match Value.bool v with
-                                    | Ok true -> set "false"
-                                    | _ -> st
-                                | _ ->
-                                    match addValue st a EnvVar v with
-                                    | Ok s -> s
-                                    | Error _ -> st
-                            | _ -> st)
-                    st
-            allArgs
-            |> List.fold
-                (fun (st: State) a ->
-                    match a.Default with
-                    | Some d when not (Map.containsKey a.Id st.Vals) ->
-                        { st with
-                            Vals = Map.add a.Id [ d ] st.Vals
-                            Src = Map.add a.Id DefaultValue st.Src }
-                    | _ -> st)
-                st
+                            match a.Action with
+                            | SetTrue ->
+                                match Value.bool v with
+                                | Ok true -> set "true"
+                                | Ok false -> set "false"
+                                | Error _ -> envErr a name v "expected true or false"
+                            | SetFalse ->
+                                match Value.bool v with
+                                | Ok true -> set "false"
+                                | Ok false -> Ok st
+                                | Error _ -> envErr a name v "expected true or false"
+                            | Count ->
+                                match System.Int32.TryParse v with
+                                | true, _ -> set v
+                                | _ -> envErr a name v "expected a number"
+                            | _ ->
+                                match addValue st a EnvVar v with
+                                | Ok s -> Ok s
+                                | Error(InvalidValue(n, bv, reason, u)) ->
+                                    Error(InvalidValue(n, bv, "from environment variable " + name + ": " + reason, u))
+                                | Error e -> Error e
+                        | _ -> Ok st
+            let withEnv =
+                allArgs
+                |> List.fold
+                    (fun acc a ->
+                        match acc with
+                        | Error e -> Error e
+                        | Ok st -> applyEnv st a)
+                    (Ok st)
+            withEnv
+            |> Result.map (fun st ->
+                allArgs
+                |> List.fold
+                    (fun (st: State) a ->
+                        match a.Default with
+                        | Some d when not (Map.containsKey a.Id st.Vals) ->
+                            { st with
+                                Vals = Map.add a.Id [ d ] st.Vals
+                                Src = Map.add a.Id DefaultValue st.Src }
+                        | _ -> st)
+                    st)
 
         if cmd.ArgRequiredElseHelp && argv.IsEmpty then
             Error(helpFor false)
         else
             let init = { Vals = Map.empty; Src = Map.empty; Sub = None; ForcePositional = false }
-            // env errors (invalid env values) are surfaced by validate through addValue in loop only for CLI; acceptable
             match loop init argv with
             | Error e -> Error e
             | Ok st ->
-                let st = finalize st
-                match validate st with
+                match finalize st |> Result.bind validate with
                 | Error e -> Error e
                 | Ok st ->
                     Ok
