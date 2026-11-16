@@ -33,6 +33,9 @@ let verbosity = m |> Matches.count "verbose"
   positional) takes every token after its first value verbatim, for exec-style wrappers like `tool run cmd --flag`.
 - Help customization: `Command.longAbout` (shown for `--help` only), `Command.beforeHelp` / `Command.afterHelp` (text above/below the
   help sections, e.g. examples) and `Arg.helpHeading` (groups options under a custom section instead of `Options:`).
+- Completions are value-aware: `Arg.possibleValues` complete after an option (`--mode <TAB>`, `--mode=<TAB>`) or at a
+  positional's slot, and `Arg.valueHint FilePath|DirPath|AnyPath` completes paths with each shell's native mechanism
+  (`Other`/unset: no path completion). Values are scoped to the subcommand (and inherited global args) they belong to.
 - AOT: reference with `--reflectionfree` in your app (see `samples/Flap.Sample`) to avoid F# `%A` reflection in generated `ToString`.
 
 ## Development

@@ -29,7 +29,8 @@ module Arg =
           Group = []
           AllowHyphenValues = false
           TrailingVarArg = false
-          HelpHeading = None }
+          HelpHeading = None
+          ValueHint = None }
 
     let short (c: char) (a: Arg) = { a with Short = Some c }
     let long (l: string) (a: Arg) = { a with Long = Some l }
@@ -41,6 +42,8 @@ module Arg =
     let defaultValue (v: string) (a: Arg) = { a with Default = Some v }
     let env (name: string) (a: Arg) = { a with Env = Some name }
     let helpHeading (h: string) (a: Arg) = { a with HelpHeading = Some h }
+    /// Hint the kind of value (e.g. `FilePath`, `DirPath`) so shell completions can complete paths.
+    let valueHint (h: ValueHint) (a: Arg) = { a with ValueHint = Some h }
     let hidden (a: Arg) = { a with Hidden = true }
     /// `global` is reserved in F#; propagates the arg to all subcommands.
     let global' (a: Arg) = { a with Global = true }

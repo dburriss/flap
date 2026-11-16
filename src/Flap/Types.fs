@@ -16,6 +16,17 @@ type ValueSource =
     | EnvVar
     | CommandLine
 
+/// What kind of value an argument takes, used by shell completions.
+type ValueHint =
+    /// Any filesystem path (file or directory).
+    | AnyPath
+    /// A file path.
+    | FilePath
+    /// A directory path.
+    | DirPath
+    /// Anything else: no path completion.
+    | Other
+
 /// A command line argument definition (flag, option or positional).
 type Arg =
     { Id: string
@@ -42,7 +53,8 @@ type Arg =
       Group: string list
       AllowHyphenValues: bool
       TrailingVarArg: bool
-      HelpHeading: string option }
+      HelpHeading: string option
+      ValueHint: ValueHint option }
 
 /// A named set of arguments.
 type ArgGroup =
