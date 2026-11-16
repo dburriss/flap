@@ -289,7 +289,15 @@ module Parser =
                     |> List.tryPick (fun r ->
                         if expand st [ r ] |> List.exists isPresent then None
                         else Some(MissingRequiredBy(argDisplayName a, nameOf r, usage))))
+            let tooFew =
+                positionals
+                |> List.tryPick (fun a ->
+                    match Map.tryFind a.Id st.Vals, Map.tryFind a.Id st.Src with
+                    | Some vs, Some CommandLine when not vs.IsEmpty && vs.Length < a.MinValues ->
+                        Some(TooFewValues(argDisplayName a, usage))
+                    | _ -> None)
             if not missing.IsEmpty then Error(MissingRequired(missing, usage))
+            elif tooFew.IsSome then Error tooFew.Value
             elif groupErr.IsSome then Error groupErr.Value
             elif conflict.IsSome then Error conflict.Value
             elif requiresErr.IsSome then Error requiresErr.Value

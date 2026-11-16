@@ -348,3 +348,38 @@ let ``command line overrides invalid env without error`` () =
     let c = Command.create "c" |> Command.arg (Arg.create "n" |> Arg.long "n" |> Arg.env "MYAPP_N" |> Arg.validate (Value.int >> Result.map ignore))
     let m = Command.tryParseWith (envOf "MYAPP_N" "abc") [ "--n"; "3" ] c |> Result.defaultWith (fun _ -> failwith "x")
     Assert.Equal(Ok(Some 3), Matches.tryInt "n" m)
+
+let private minPos (req: bool) (lo: int) (hi: int) =
+    let a = Arg.create "p" |> Arg.positional 1 |> Arg.numArgs lo hi
+    Command.create "c" |> Command.arg (if req then Arg.required a else a)
+
+[<Fact>]
+let ``positional numArgs min enforced when too few values`` () =
+    match Command.tryParse [ "a" ] (minPos false 2 4) with
+    | Error(TooFewValues(_, _)) -> ()
+    | r -> failwithf "expected TooFewValues, got %b" r.IsOk
+
+[<Fact>]
+let ``positional numArgs min satisfied`` () =
+    Assert.True((Command.tryParse [ "a"; "b" ] (minPos false 2 4)).IsOk)
+
+[<Fact>]
+let ``optional positional with min and no values is ok`` () =
+    Assert.True((Command.tryParse [] (minPos false 2 4)).IsOk)
+
+[<Fact>]
+let ``required positional with min and no values is missing required`` () =
+    match Command.tryParse [] (minPos true 2 4) with
+    | Error(MissingRequired(_, _)) -> ()
+    | r -> failwithf "expected MissingRequired, got %b" r.IsOk
+
+[<Fact>]
+let ``optional positional numArgs 0 N with no values is ok`` () =
+    Assert.True((Command.tryParse [] (minPos false 0 3)).IsOk)
+
+[<Fact>]
+let ``positional with default and min 2 given nothing is ok`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (Arg.create "p" |> Arg.positional 1 |> Arg.numArgs 2 4 |> Arg.defaultValue "x")
+    Assert.True((Command.tryParse [] c).IsOk)
