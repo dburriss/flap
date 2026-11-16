@@ -2,7 +2,7 @@
 
 This is a recommended layout for a Flap-based tool that does real work: a domain project that knows nothing about the command line, and a CLI project that translates arguments into domain commands. Both are organised by slice (one folder per command), not by layer.
 
-The complete, runnable version is in `samples/Flap.Architecture`.
+The complete, runnable version is the [architecture sample](../../samples/Flap.Architecture): a todo tool with [`Todo.Domain`](../../samples/Flap.Architecture/Todo.Domain) and [`Todo.Cli`](../../samples/Flap.Architecture/Todo.Cli), published as Native AOT. Read it alongside this page.
 
 ## Layout
 
@@ -27,7 +27,7 @@ Adding a feature means adding a folder to each project, one line in `Cli.fs` and
 
 ## Write a slice
 
-Each CLI slice is one module with four parts.
+Each CLI slice is one module with four parts. This one is [`Add/AddCli.fs`](../../samples/Flap.Architecture/Todo.Cli/Add/AddCli.fs) from the sample.
 
 ```fsharp
 module AddCli =
@@ -60,7 +60,7 @@ module AddCli =
 
 ## Dispatch with the patterns
 
-`Program.fs` parses with the pure `Command.tryParse`, then has one line per command:
+[`Program.fs`](../../samples/Flap.Architecture/Todo.Cli/Program.fs) parses with the pure `Command.tryParse`, then has one line per command:
 
 ```fsharp
 let private dispatch (deps: Deps) (m: Matches) : int =
@@ -76,7 +76,7 @@ let private dispatch (deps: Deps) (m: Matches) : int =
 
 ## Commands that don't reach the domain
 
-`completions <shell>` is a CLI concern, so its pattern maps to a `Flap.Shell` rather than a domain command, and its `run` uses `deps.Root` to generate the script. Not every slice needs a domain counterpart.
+`completions <shell>` ([`CompletionsCli.fs`](../../samples/Flap.Architecture/Todo.Cli/Completions/CompletionsCli.fs)) is a CLI concern, so its pattern maps to a `Flap.Shell` rather than a domain command, and its `run` uses `deps.Root` to generate the script. Not every slice needs a domain counterpart.
 
 ## Try it
 
