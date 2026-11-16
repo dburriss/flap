@@ -20,3 +20,4 @@ Flap: a clap-style, pipe-friendly CLI parser for F#. No attributes, no reflectio
 ## Commits & changelog
 - Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, ...; `!` or `BREAKING CHANGE:` for breaking changes).
 - Record every user- or developer-facing change in `CHANGELOG.md` under `## [Unreleased]`, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (Added / Changed / Deprecated / Removed / Fixed / Security).
+- Don't log documentation-only changes (README, `AGENTS.md`, `CLAUDE.md`, docs, comments) in the changelog.
