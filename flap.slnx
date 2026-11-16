@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Flap.Sample/Flap.Sample.fsproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Flap/Flap.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Flap.Tests/Flap.Tests.fsproj" />
+  </Folder>
+</Solution>

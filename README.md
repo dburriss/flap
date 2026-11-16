@@ -1,0 +1,37 @@
+# Flap
+
+A [clap](https://github.com/clap-rs/clap)-style builder API for F#: modules and piping, no attributes, no reflection.
+Native AOT and Fable compatible.
+
+```fsharp
+open Flap
+
+let cmd =
+    Command.create "myapp"
+    |> Command.version "1.0"
+    |> Command.about "Does things"
+    |> Command.arg (Arg.create "name" |> Arg.short 'n' |> Arg.long "name" |> Arg.required)
+    |> Command.arg (Arg.create "verbose" |> Arg.short 'v' |> Arg.count)
+    |> Command.arg (Arg.create "mode" |> Arg.long "mode" |> Arg.possibleValues [ "fast"; "slow" ] |> Arg.defaultValue "fast")
+    |> Command.subcommand (Command.create "build" |> Command.arg (Arg.create "release" |> Arg.long "release" |> Arg.flag))
+
+let m = cmd |> Command.parse (List.ofArray argv)   // prints help/errors and exits like clap
+let name = m |> Matches.getString "name"
+let verbosity = m |> Matches.count "verbose"
+```
+
+- `Command.tryParse` / `Command.tryParseWith` are pure and return `Result<Matches, ParseError>` (use these under Fable).
+- `Command.parseWith` takes stdout/stderr/exit callbacks; `Command.parse` uses the console (not under Fable).
+- Typed values use explicit parsers (`Value.int`, `Value.oneOf`, ...) via `Matches.tryGetWith`.
+- Supports flags, counts, options, append/multi-value, delimiters, positionals, subcommands, global args, env vars,
+  defaults, possible values, validators, conflicts/requires, groups, external subcommands, help/version,
+  did-you-mean suggestions and completions (`Completions.generate Bash|Zsh|Fish|PowerShell cmd`).
+- AOT: reference with `--reflectionfree` in your app (see `samples/Flap.Sample`) to avoid F# `%A` reflection in generated `ToString`.
+
+## Development
+
+```
+dotnet test tests/Flap.Tests
+dotnet publish samples/Flap.Sample -c Release -r osx-arm64     # Native AOT
+cd samples/Flap.Fable && dotnet fable --lang js                 # Fable
+```

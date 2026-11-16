@@ -1,0 +1,189 @@
+module Flap.Tests.ParserTests
+
+open Xunit
+open Flap
+
+let app =
+    Command.create "app"
+    |> Command.version "1.2.3"
+    |> Command.about "Does things"
+    |> Command.arg (Arg.create "name" |> Arg.short 'n' |> Arg.long "name" |> Arg.help "Your name")
+    |> Command.arg (Arg.create "verbose" |> Arg.short 'v' |> Arg.long "verbose" |> Arg.count)
+    |> Command.arg (Arg.create "quiet" |> Arg.short 'q' |> Arg.long "quiet" |> Arg.flag)
+    |> Command.arg (Arg.create "mode" |> Arg.long "mode" |> Arg.possibleValues [ "fast"; "slow" ] |> Arg.defaultValue "fast")
+    |> Command.arg (Arg.create "tag" |> Arg.short 't' |> Arg.long "tag" |> Arg.append)
+    |> Command.arg (Arg.create "file" |> Arg.positional 1 |> Arg.required)
+    |> Command.subcommand (
+        Command.create "build"
+        |> Command.about "Build it"
+        |> Command.arg (Arg.create "release" |> Arg.long "release" |> Arg.flag)
+    )
+
+let ok argv =
+    match Command.tryParse argv app with
+    | Ok m -> m
+    | Error e -> failwithf "unexpected error: %s" (ParseError.render e)
+
+let err argv =
+    match Command.tryParse argv app with
+    | Ok _ -> failwith "expected error"
+    | Error e -> e
+
+[<Fact>]
+let ``long, short, inline and clusters`` () =
+    let m = ok [ "--name=bob"; "-vvq"; "f.txt" ]
+    Assert.Equal("bob", Matches.getString "name" m)
+    Assert.Equal(2, Matches.count "verbose" m)
+    Assert.True(Matches.flag "quiet" m)
+    Assert.Equal("f.txt", Matches.getString "file" m)
+
+[<Fact>]
+let ``short value attached and separate`` () =
+    Assert.Equal(Some "x", ok [ "-nx"; "f" ] |> Matches.tryString "name")
+    Assert.Equal(Some "x", ok [ "-n"; "x"; "f" ] |> Matches.tryString "name")
+
+[<Fact>]
+let ``defaults and sources`` () =
+    let m = ok [ "f" ]
+    Assert.Equal("fast", Matches.getString "mode" m)
+    Assert.Equal(Some DefaultValue, Matches.valueSource "mode" m)
+    Assert.False(Matches.flag "quiet" m)
+
+[<Fact>]
+let ``append collects values`` () =
+    let m = ok [ "-t"; "a"; "--tag"; "b"; "f" ]
+    Assert.Equal<string list>([ "a"; "b" ], Matches.getMany "tag" m)
+
+[<Fact>]
+let ``double dash makes positionals`` () =
+    Assert.Equal("-weird", ok [ "--"; "-weird" ] |> Matches.getString "file")
+
+[<Fact>]
+let ``subcommand parsed`` () =
+    let m = ok [ "f"; "build"; "--release" ]
+    let sub = Matches.trySubcommand "build" m
+    Assert.True(sub.IsSome)
+    Assert.True(Matches.flag "release" sub.Value)
+
+[<Fact>]
+let ``missing required`` () =
+    match err [] with
+    | MissingRequired([ "<FILE>" ], _) -> ()
+    | e -> failwithf "%A" (ParseError.render e)
+
+[<Fact>]
+let ``invalid possible value`` () =
+    match err [ "--mode"; "medium"; "f" ] with
+    | InvalidValue("--mode", "medium", _, _) -> ()
+    | e -> failwith (ParseError.render e)
+
+[<Fact>]
+let ``unknown arg suggests`` () =
+    match err [ "--verbos"; "f" ] with
+    | UnknownArgument(_, Some "--verbose", _) -> ()
+    | e -> failwith (ParseError.render e)
+
+[<Fact>]
+let ``too many positionals`` () =
+    match err [ "a"; "b" ] with
+    | UnknownArgument("b", _, _) -> ()
+    | e -> failwith (ParseError.render e)
+
+[<Fact>]
+let ``missing option value`` () =
+    match err [ "f"; "--name" ] with
+    | MissingValue("--name", _) -> ()
+    | e -> failwith (ParseError.render e)
+
+[<Fact>]
+let ``help and version`` () =
+    match err [ "--help" ] with
+    | DisplayHelp t ->
+        Assert.Contains("Usage: app [OPTIONS] <FILE> [COMMAND]", t)
+        Assert.Contains("-n, --name <NAME>", t)
+        Assert.Contains("[default: fast]", t)
+        Assert.Contains("build", t)
+    | _ -> failwith "expected help"
+    match err [ "-V" ] with
+    | DisplayVersion "app 1.2.3\n" -> ()
+    | _ -> failwith "expected version"
+    Assert.Equal(0, ParseError.exitCode (DisplayHelp ""))
+    Assert.Equal(2, ParseError.exitCode (MissingSubcommand ""))
+
+[<Fact>]
+let ``help subcommand`` () =
+    match err [ "f"; "help"; "build" ] with
+    | DisplayHelp t -> Assert.Contains("Usage: app build", t)
+    | _ -> failwith "expected help"
+
+[<Fact>]
+let ``conflicts, requires, groups`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (Arg.create "a" |> Arg.long "a" |> Arg.flag |> Arg.conflictsWith "b")
+        |> Command.arg (Arg.create "b" |> Arg.long "b" |> Arg.flag)
+        |> Command.arg (Arg.create "x" |> Arg.long "x" |> Arg.flag |> Arg.requires "a")
+        |> Command.arg (Arg.create "j" |> Arg.long "j" |> Arg.flag |> Arg.group "fmt")
+        |> Command.arg (Arg.create "y" |> Arg.long "y" |> Arg.flag |> Arg.group "fmt")
+    let run argv = Command.tryParse argv c
+    Assert.True(match run [ "--a"; "--b" ] with Error(ArgumentConflict _) -> true | _ -> false)
+    Assert.True(match run [ "--x" ] with Error(MissingRequiredBy _) -> true | _ -> false)
+    Assert.True(match run [ "--x"; "--a" ] with Ok _ -> true | _ -> false)
+    Assert.True(match run [ "--j"; "--y" ] with Error(GroupConflict _) -> true | _ -> false)
+
+[<Fact>]
+let ``env fallback`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "p" |> Arg.long "p" |> Arg.env "P")
+    let m = Command.tryParseWith (fun n -> if n = "P" then Some "7" else None) [] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.Equal(Some 7, Matches.tryInt "p" m)
+    Assert.Equal(Some EnvVar, Matches.valueSource "p" m)
+
+[<Fact>]
+let ``multi values and delimiter`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (Arg.create "l" |> Arg.long "l" |> Arg.delimiter ',' |> Arg.append)
+        |> Command.arg (Arg.create "rest" |> Arg.positional 1 |> Arg.manyValues)
+    let m = Command.tryParse [ "--l"; "a,b"; "x"; "y"; "z" ] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.Equal<string list>([ "a"; "b" ], Matches.getMany "l" m)
+    Assert.Equal<string list>([ "x"; "y"; "z" ], Matches.getMany "rest" m)
+
+[<Fact>]
+let ``global args propagate to subcommands`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (Arg.create "v" |> Arg.long "v" |> Arg.flag |> Arg.global')
+        |> Command.subcommand (Command.create "s")
+    let m = Command.tryParse [ "s"; "--v" ] c
+    Assert.True(match m with Ok m -> Matches.flag "v" (Matches.trySubcommand "s" m).Value | _ -> false)
+
+[<Fact>]
+let ``external subcommands`` () =
+    let c = Command.create "c" |> Command.allowExternalSubcommands
+    match Command.tryParse [ "foo"; "--bar"; "x" ] c with
+    | Ok m ->
+        let n, sm = (Matches.subcommand m).Value
+        Assert.Equal("foo", n)
+        Assert.Equal<string list>([ "--bar"; "x" ], Matches.externalArgs sm)
+    | Error e -> failwith (ParseError.render e)
+
+[<Fact>]
+let ``definition problems detected`` () =
+    let bad =
+        Command.create "c"
+        |> Command.arg (Arg.create "a" |> Arg.short 'x')
+        |> Command.arg (Arg.create "b" |> Arg.short 'x')
+    Assert.NotEmpty(Command.check bad)
+    Assert.Throws<exn>(fun () -> Command.debugAssert bad |> ignore) |> ignore
+
+[<Fact>]
+let ``subcommand required`` () =
+    let c = Command.create "c" |> Command.subcommand (Command.create "s") |> Command.subcommandRequired
+    Assert.True(match Command.tryParse [] c with Error(MissingSubcommand _) -> true | _ -> false)
+
+[<Fact>]
+let ``completions generate for all shells`` () =
+    for sh in [ Bash; Zsh; Fish; PowerShell ] do
+        let s = Completions.generate sh app
+        Assert.Contains((if sh = Fish then "-l verbose" else "--verbose"), s)
+        Assert.Contains("build", s)
