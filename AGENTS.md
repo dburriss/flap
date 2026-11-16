@@ -15,7 +15,7 @@ Flap: a clap-style, pipe-friendly CLI parser for F#. No attributes, no reflectio
 ## Rules
 - Library is built with `--reflectionfree` and `TreatWarningsAsErrors`; don't use `%A`/`sprintf "%A"`, reflection, or APIs unavailable in Fable/netstandard2.1.
 - Keep the parsing core pure (`Command.tryParse*` returns `Result`); console I/O belongs only in `Command.parse`.
-- Add tests for behaviour changes; update `README.md` when the public API changes.
+- Add tests for behaviour changes; update `README.md` and the matching page in `docs/` (Diataxis layout, see `docs/index.md`) when the public API changes.
 
 ## Branching
 - Work directly on `main`. Don't create branches or worktrees without asking first.

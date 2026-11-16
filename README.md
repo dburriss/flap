@@ -20,30 +20,15 @@ let name = m |> Matches.getString "name"
 let verbosity = m |> Matches.count "verbose"
 ```
 
-- `Command.tryParse` / `Command.tryParseWith` are pure and return `Result<Matches, ParseError>` (use these under Fable).
-- `Command.parseWith` takes stdout/stderr/exit callbacks; `Command.parse` uses the console (not under Fable).
-- Typed values use explicit parsers (`Value.int`, `Value.oneOf`, ...) via `Matches.tryGetWith`.
-- `Matches.tryInt` / `tryBool` / `tryFloat` return `Result<'T option, string>` (`Ok None` if absent, `Error` if the value
-  does not parse); `getInt` / `getBool` / `getFloat` are the required variants returning `Result<'T, string>`:
-  `match Matches.tryInt "times" m with Ok(Some n) -> ... | Ok None -> ... | Error e -> eprintfn "%s" e`.
-- Supports flags, counts, options, append/multi-value, delimiters, positionals, subcommands, global args, env vars,
-  defaults, possible values, validators, conflicts/requires, groups, external subcommands, help/version,
-  did-you-mean suggestions and completions (`Completions.generate Bash|Zsh|Fish|PowerShell|Nushell cmd`).
-- Nushell completions (`Completions.generate Nushell cmd`) emit `export extern` definitions per command level (and alias), with
-  `def "nu-complete ..."` completers for possible values and `path`/`directory` typing for value hints.
-- `Arg.allowHyphenValues` lets an option/positional take a value starting with `-`; `Arg.trailingVarArg` (last, multi-value
-  positional) takes every token after its first value verbatim, for exec-style wrappers like `tool run cmd --flag`.
-- Help customization: `Command.longAbout` (shown for `--help` only), `Command.beforeHelp` / `Command.afterHelp` (text above/below the
-  help sections, e.g. examples) and `Arg.helpHeading` (groups options under a custom section instead of `Options:`).
-- Completions are value-aware: `Arg.possibleValues` complete after an option (`--mode <TAB>`, `--mode=<TAB>`) or at a
-  positional's slot, and `Arg.valueHint FilePath|DirPath|AnyPath` completes paths with each shell's native mechanism
-  (`Other`/unset: no path completion). Values are scoped to the subcommand (and inherited global args) they belong to.
-- AOT: reference with `--reflectionfree` in your app (see `samples/Flap.Sample`) to avoid F# `%A` reflection in generated `ToString`.
+Flags, counts, options, multi-value, positionals, subcommands, global args, env vars, defaults, possible values,
+validators, conflicts/requires, groups, external subcommands, help/version, did-you-mean suggestions and shell
+completions (Bash, Zsh, Fish, PowerShell, Nushell).
 
-## Development
+## Documentation
 
-```
-dotnet test tests/Flap.Tests
-dotnet publish samples/Flap.Sample -c Release -r osx-arm64     # Native AOT
-cd samples/Flap.Fable && dotnet fable --lang js                 # Fable
-```
+- **Learn:** [Getting started](docs/tutorials/getting-started.md)
+- **Do:** [AOT and Fable](docs/how-to/aot-and-fable.md), [Shell completions](docs/how-to/shell-completions.md), [Customize help](docs/how-to/customize-help.md), [Exec-style wrappers](docs/how-to/exec-style-wrappers.md)
+- **Look up:** [API reference](docs/reference/api.md), [Completions reference](docs/reference/completions.md)
+- **Understand:** [Design](docs/explanation/design.md)
+
+See the [docs index](docs/index.md) for everything in one place. Contributing: see [AGENTS.md](AGENTS.md).
