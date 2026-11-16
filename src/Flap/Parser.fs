@@ -306,9 +306,32 @@ module Parser =
                         else
                             match a.Env |> Option.bind env with
                             | Some v when v <> "" ->
-                                match addValue st a EnvVar v with
-                                | Ok s -> s
-                                | Error _ -> st
+                                // Flag-action args interpret the env value as a boolean
+                                // (Value.bool semantics) instead of storing the raw string.
+                                // SetTrue: truthy -> "true"; falsy -> "false".
+                                // SetFalse (clap semantic: truthy env means the flag is
+                                // "present"): truthy -> "false" (the flag's effect applies);
+                                // falsy -> nothing stored, so default/absence applies.
+                                // Count: a numeric env value N is stored as the count N.
+                                // Unparseable flag values keep the previous behaviour.
+                                let set (x: string) =
+                                    { st with
+                                        Vals = Map.add a.Id [ x ] st.Vals
+                                        Src = Map.add a.Id EnvVar st.Src }
+                                match a.Action with
+                                | SetTrue ->
+                                    match Value.bool v with
+                                    | Ok true -> set "true"
+                                    | Ok false -> set "false"
+                                    | Error _ -> st
+                                | SetFalse ->
+                                    match Value.bool v with
+                                    | Ok true -> set "false"
+                                    | _ -> st
+                                | _ ->
+                                    match addValue st a EnvVar v with
+                                    | Ok s -> s
+                                    | Error _ -> st
                             | _ -> st)
                     st
             allArgs

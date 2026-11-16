@@ -250,3 +250,50 @@ let ``tryInt tryBool tryFloat return Ok for valid or absent values`` () =
     Assert.Equal(Ok None, Matches.tryInt "none" m)
     Assert.Equal(Ok None, Matches.tryBool "none" m)
     Assert.Equal(Ok None, Matches.tryFloat "none" m)
+
+let private envFlagCmd =
+    Command.create "c" |> Command.arg (Arg.create "d" |> Arg.long "d" |> Arg.flag |> Arg.env "D")
+
+let private parseEnvFlag (v: string) (args: string list) =
+    Command.tryParseWith (fun n -> if n = "D" then Some v else None) args envFlagCmd
+    |> Result.defaultWith (fun _ -> failwith "x")
+
+[<Theory>]
+[<InlineData("1")>]
+[<InlineData("true")>]
+[<InlineData("yes")>]
+[<InlineData("on")>]
+[<InlineData("TRUE")>]
+let ``env flag truthy values read as true`` (v: string) =
+    let m = parseEnvFlag v []
+    Assert.True(Matches.flag "d" m)
+    Assert.Equal(Some EnvVar, Matches.valueSource "d" m)
+
+[<Theory>]
+[<InlineData("0")>]
+[<InlineData("false")>]
+[<InlineData("no")>]
+[<InlineData("off")>]
+let ``env flag falsy values read as false`` (v: string) =
+    Assert.False(Matches.flag "d" (parseEnvFlag v []))
+
+[<Fact>]
+let ``command-line flag wins over env flag`` () =
+    let m = parseEnvFlag "0" [ "--d" ]
+    Assert.True(Matches.flag "d" m)
+    Assert.Equal(Some CommandLine, Matches.valueSource "d" m)
+
+[<Fact>]
+let ``env set-false flag truthy stores false`` () =
+    let c =
+        Command.create "c"
+        |> Command.arg (let a = Arg.create "d" |> Arg.long "d" |> Arg.flag |> Arg.env "D" in { a with Action = SetFalse })
+    let m = Command.tryParseWith (fun _ -> Some "1") [] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.False(Matches.flag "d" m)
+    Assert.Equal(Some EnvVar, Matches.valueSource "d" m)
+
+[<Fact>]
+let ``env count flag uses numeric value`` () =
+    let c = Command.create "c" |> Command.arg (Arg.create "v" |> Arg.long "v" |> Arg.count |> Arg.env "V")
+    let m = Command.tryParseWith (fun _ -> Some "3") [] c |> Result.defaultWith (fun _ -> failwith "x")
+    Assert.Equal(3, Matches.count "v" m)
