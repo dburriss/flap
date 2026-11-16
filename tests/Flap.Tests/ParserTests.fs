@@ -465,6 +465,20 @@ let ``trailingVarArg double dash after first value is kept`` () =
     Assert.Equal<string list>([ "run"; "--"; "x" ], Matches.getMany "cmd" m)
 
 [<Fact>]
+let ``trailingVarArg with allowHyphenValues takes a known flag as its first value`` () =
+    let c =
+        Command.create "tool"
+        |> Command.arg (Arg.create "verbose" |> Arg.long "verbose" |> Arg.flag)
+        |> Command.arg (Arg.create "cmd" |> Arg.positional 1 |> Arg.manyValues |> Arg.trailingVarArg |> Arg.allowHyphenValues)
+    let m = parseOk [ "--verbose"; "x" ] c
+    Assert.False(Matches.flag "verbose" m)
+    Assert.Equal<string list>([ "--verbose"; "x" ], Matches.getMany "cmd" m)
+    // without allowHyphenValues the same token is still parsed as the known flag
+    let m2 = parseOk [ "--verbose"; "x" ] trailCmd
+    Assert.True(Matches.flag "verbose" m2)
+    Assert.Equal<string list>([ "x" ], Matches.getMany "cmd" m2)
+
+[<Fact>]
 let ``trailingVarArg rejected on non-last positional`` () =
     let c =
         Command.create "c"
