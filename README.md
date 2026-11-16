@@ -11,6 +11,8 @@
 </p>
 
 <p align="center">
+  <a href="https://www.nuget.org/packages/Flap"><img src="https://img.shields.io/nuget/vpre/Flap?logo=nuget&label=Flap" alt="NuGet Flap"></a>
+  <a href="https://www.nuget.org/packages/Flap"><img src="https://img.shields.io/nuget/dt/Flap?logo=nuget" alt="NuGet downloads"></a>
   <a href="https://github.com/dburriss/flap/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dburriss/flap" alt="License"></a>
 </p>
 
@@ -26,7 +28,13 @@
 
 ## Get started
 
-Reference the `Flap` library from an F# console project (.NET 10 SDK required; the library also targets `netstandard2.1`), then define a command and parse:
+Add the [`Flap`](https://www.nuget.org/packages/Flap) package to an F# console project (beta, hence `--prerelease`; .NET 10 SDK required, and the library also targets `netstandard2.1`):
+
+```bash
+dotnet add package Flap --prerelease
+```
+
+Then define a command and parse:
 
 ```fsharp
 open Flap
