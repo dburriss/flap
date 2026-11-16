@@ -1,0 +1,6 @@
+# Shells used to smoke-test the generated completion scripts (Completions.generate).
+# bash and zsh are not in the mise registry; the system ones are used (macOS ships both).
+[tools]
+nushell = "latest"
+powershell = "latest"
+"aqua:fish-shell/fish-shell" = "latest"
