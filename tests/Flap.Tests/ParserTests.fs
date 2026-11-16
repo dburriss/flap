@@ -182,6 +182,16 @@ let ``subcommand required`` () =
     Assert.True(match Command.tryParse [] c with Error(MissingSubcommand _) -> true | _ -> false)
 
 [<Fact>]
+let ``missing subcommand error has no stray quotes`` () =
+    let c = Command.create "c" |> Command.subcommand (Command.create "s") |> Command.subcommandRequired
+    match Command.tryParse [] c with
+    | Error e ->
+        let rendered = ParseError.render e
+        Assert.StartsWith("error: a subcommand is required but one was not provided", rendered)
+        Assert.DoesNotContain("'a subcommand", rendered)
+    | Ok _ -> failwith "expected MissingSubcommand error"
+
+[<Fact>]
 let ``completions generate for all shells`` () =
     for sh in [ Bash; Zsh; Fish; PowerShell ] do
         let s = Completions.generate sh app

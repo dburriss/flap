@@ -112,7 +112,7 @@ module ParseError =
         | TooFewValues(a, u) -> "error: more values required for '" + a + "'\n\n" + u
         | ArgumentConflict(a, o, u) -> "error: the argument '" + a + "' cannot be used with '" + o + "'\n\n" + u
         | MissingRequiredBy(a, r, u) -> "error: the argument '" + a + "' requires '" + r + "' to also be provided\n\n" + u
-        | MissingSubcommand u -> "error: 'a subcommand is required but one was not provided'\n\n" + u
+        | MissingSubcommand u -> "error: a subcommand is required but one was not provided\n\n" + u
         | GroupConflict(g, u) -> "error: the arguments in group '" + g + "' cannot be used together\n\n" + u
         | GroupRequired(g, u) -> "error: one of the arguments in group '" + g + "' is required\n\n" + u
 
