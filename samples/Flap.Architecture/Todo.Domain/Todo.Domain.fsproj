@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!-- Organised by slice: one folder per use case. Shared.fs holds only what slices share. -->
+  <ItemGroup>
+    <Compile Include="Shared.fs" />
+    <Compile Include="Add/AddTodo.fs" />
+    <Compile Include="Complete/CompleteTodo.fs" />
+    <Compile Include="List/ListTodos.fs" />
+  </ItemGroup>
+
+</Project>

@@ -5,10 +5,12 @@ Flap: a clap-style, pipe-friendly CLI parser for F#. No attributes, no reflectio
 ## Layout
 - `src/Flap` — library (targets `net10.0` and `netstandard2.1`). F# compile order matters: `Types → Arg → Matches → Help → Parser → Completions → Command` (see `Flap.fsproj`).
 - `tests/Flap.Tests` — xUnit v3 tests (Microsoft.Testing.Platform).
-- `samples/Flap.Sample` (Native AOT), `samples/Flap.Fable` (Fable).
+- `samples/` — example projects.
 
 ## Commands
+- Build: `dotnet build flap.slnx`
 - Test: `dotnet test tests/Flap.Tests`
+- Build and run the tests **before** starting a change (to know the baseline) and **again after** it. Report the results of both; don't claim a change works from a build alone.
 - AOT sample: `dotnet publish samples/Flap.Sample -c Release -r osx-arm64`
 - Fable sample: `cd samples/Flap.Fable && dotnet fable --lang js`
 

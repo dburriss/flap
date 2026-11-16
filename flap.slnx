@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
+    <Project Path="samples/Flap.Architecture/Todo.Cli/Todo.Cli.fsproj" />
+    <Project Path="samples/Flap.Architecture/Todo.Domain/Todo.Domain.fsproj" />
     <Project Path="samples/Flap.Sample/Flap.Sample.fsproj" />
   </Folder>
   <Folder Name="/src/">

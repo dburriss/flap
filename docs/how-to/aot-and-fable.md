@@ -15,7 +15,7 @@
    dotnet publish -c Release -r osx-arm64
    ```
 
-See `samples/Flap.Sample` for a working project.
+See `samples/Flap.Sample` for a working project, or [Structure an application](structure-an-application.md) for a larger AOT-published example.
 
 ## Fable
 
