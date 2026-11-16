@@ -23,6 +23,10 @@ Flap: a clap-style, pipe-friendly CLI parser for F#. No attributes, no reflectio
 - Work directly on `main`. Don't create branches or worktrees without asking first.
 - If a change seems experimental or risky, ask permission before branching.
 
+## Releasing
+- Run `./publish.sh` (`--dry-run` first): it bumps `<Version>` in `src/Flap/Flap.fsproj`, rolls `CHANGELOG.md`, commits and tags `vX.Y.Z`. Pushing the tag triggers `.github/workflows/publish-nuget.yml`, which publishes to NuGet via Trusted Publishing (needs the `NUGET_USER` secret and a nuget.org policy naming `publish-nuget.yml`).
+- CI takes the version from the tag; don't hand-edit `<Version>` or `<PackageReleaseNotes>`.
+
 ## Commits & changelog
 - Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, ...; `!` or `BREAKING CHANGE:` for breaking changes).
 - Record every user- or developer-facing change in `CHANGELOG.md` under `## [Unreleased]`, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (Added / Changed / Deprecated / Removed / Fixed / Security).
