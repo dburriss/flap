@@ -31,7 +31,7 @@ Because the command is data, `Completions.generate` can derive scripts for every
 
 A script can only list values it knew when it was generated. Values that change (ids, project names) have to come from the running program, so an arg can carry a completer and the script then calls back into the program for that arg.
 
-Only those args call back. Everything else (subcommands, flags, fixed values, paths) stays in the generated script, because launching a process on every Tab press is slow, especially for apps that are not compiled ahead of time. An app with no completers gets the same static script as before.
+Only those args call back. Everything else (subcommands, flags, fixed values, paths) stays in the generated script, because launching a process on every Tab press costs time, more so for apps that are not compiled ahead of time. An app with no completers gets the same static script as before.
 
 The call-back is signalled with an environment variable named after the app (`MY_TOOL_COMPLETE`) rather than a shared name. A process inherits its parent's environment, so a shared name set while completing one Flap app would also switch any Flap app it starts into completion mode.
 

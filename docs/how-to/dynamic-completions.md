@@ -76,7 +76,7 @@ This prints the hosts that start with `pr`, one per line. With `zsh`, `fish`, `p
 
 ## Notes
 
-- **Speed:** your program starts on every Tab press for a dynamic argument. That is quick under Native AOT. For an app run as `dotnet app.dll` it can be noticeable, so keep the completer cheap.
+- **Speed:** your program starts on every Tab press for a dynamic argument. In the `Todo.Cli` sample a press took about 12 ms as a Native AOT binary and about 32 ms through `dotnet todo.dll` (measured on one machine, with a tiny app). A larger app, or a completer that does real work, takes longer, so keep the completer cheap.
 - **Nushell:** its script splits the command line on single spaces, so a quoted argument containing a space can confuse the completer.
 
 See the [Completions reference](../reference/completions.md) for the exact protocol and output formats.
