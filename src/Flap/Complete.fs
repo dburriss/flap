@@ -68,6 +68,8 @@ module Complete =
     let private walk (ctx: Ctx) (words: string list) : Ctx * int * Arg option * bool =
         let step (ctx, pos, pending: Arg option, afterDd) (w: string) =
             match pending with
+            // bash splits `--opt=val` into `--opt` `=` `val`: the `=` keeps waiting for the value
+            | Some _ when w = "=" -> ctx, pos, pending, afterDd
             | Some _ -> ctx, pos, None, afterDd
             | None when afterDd -> ctx, pos + 1, None, afterDd
             | None when w = "--" -> ctx, pos, None, true
@@ -96,7 +98,7 @@ module Complete =
             | last :: restRev -> List.rev restRev, last
         let ctx, pos, pending, afterDd = walk root prior
         match pending with
-        | Some a -> valuesFor a cur
+        | Some a -> valuesFor a (if cur = "=" then "" else cur)
         | None ->
             if not afterDd && startsWith "--" cur && cur.Contains "=" then
                 // `--opt=par`: complete the value part of the option
@@ -135,3 +137,11 @@ module Complete =
             | PowerShell
             | Nushell -> v + "\t" + (c.Help |> Option.map oneLine |> Option.defaultValue "") + "\n")
         |> String.concat ""
+
+    /// If `env` says this is a completion request (`<NAME>_COMPLETE=<shell>`), the text to print for
+    /// `argv` (the words after the program name). Pure: apps that call `Command.tryParse` directly
+    /// use this before parsing; `Command.parseWith` does it for you.
+    let respond (env: string -> string option) (argv: string list) (cmd: Command) : string option =
+        env (envVarName cmd)
+        |> Option.bind tryParseShell
+        |> Option.map (fun shell -> render shell (candidates argv cmd))

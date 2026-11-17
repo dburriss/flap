@@ -6,7 +6,8 @@ module internal CompletionModel =
 
 
     /// What to complete for a value: fixed values and/or a path kind ('f' = any path/file, 'd' = directory).
-    type ValueSpec = { Values: string list; Path: char option }
+    /// `Dynamic` means the arg has a runtime completer: the generated script calls back into the program.
+    type ValueSpec = { Values: string list; Path: char option; Dynamic: bool }
 
     /// A positional completion slot: 0-based first/last value slot (None = unbounded).
     type Slot = { First: int; Last: int option; Spec: ValueSpec }
@@ -56,8 +57,8 @@ module internal CompletionModel =
         | None -> None
 
     let specOf (a: Arg) : ValueSpec option =
-        let spec = { Values = a.PossibleValues; Path = pathOf a }
-        if spec.Values.IsEmpty && spec.Path.IsNone then None else Some spec
+        let spec = { Values = a.PossibleValues; Path = pathOf a; Dynamic = a.Completer.IsSome }
+        if spec.Values.IsEmpty && spec.Path.IsNone && not spec.Dynamic then None else Some spec
 
     /// Visible value-taking options (these consume the next word).
     let valueOptions (ctx: Ctx) : Arg list =

@@ -163,3 +163,37 @@ let ``an unrecognised shell name falls through to normal parsing`` () =
     let out, code = runParse [ "MY_TOOL_COMPLETE", "tcsh" ] [ "status" ]
     Assert.Equal("", out)
     Assert.Equal(-1, code)
+
+[<Fact>]
+let ``bash-style split option = value is treated like option=value`` () =
+    // COMP_WORDS for `app deploy --project=al` is: deploy --project = al
+    Assert.Equal<string list>([ "alpha"; "alpine" ], values [ "deploy"; "--project"; "="; "al" ])
+    // cursor right after the `=`
+    Assert.Equal<string list>([ "alpha"; "alpine"; "beta" ], values [ "deploy"; "--project"; "=" ])
+
+[<Fact>]
+let ``respond is pure: Some only when the app's variable names a known shell`` () =
+    let env (k, v) = fun n -> if n = k then Some v else None
+    Assert.Equal(Some "beta\n", Complete.respond (env ("MY_TOOL_COMPLETE", "bash")) [ "deploy"; "--project"; "be" ] app)
+    Assert.Equal(None, Complete.respond (env ("OTHER_COMPLETE", "bash")) [ "status" ] app)
+    Assert.Equal(None, Complete.respond (env ("MY_TOOL_COMPLETE", "tcsh")) [ "status" ] app)
+    Assert.Equal(None, Complete.respond (fun _ -> None) [ "status" ] app)
+
+// ---- generated scripts: hybrid call-back -----------------------------------------------------
+
+let private staticOnly =
+    Command.create "plain"
+    |> Command.arg (Arg.create "mode" |> Arg.long "mode" |> Arg.possibleValues [ "fast"; "slow" ])
+
+[<Fact>]
+let ``scripts only call back into the program when an arg has a completer`` () =
+    for sh in [ Bash; Zsh ] do
+        Assert.DoesNotContain("_COMPLETE", Completions.generate sh staticOnly)
+        Assert.Contains("MY_TOOL_COMPLETE=" + (if sh = Bash then "bash" else "zsh"), Completions.generate sh app)
+
+[<Fact>]
+let ``static values and flags are still emitted next to dynamic ones`` () =
+    for sh in [ Bash; Zsh ] do
+        let s = Completions.generate sh app
+        Assert.Contains("'fast'", s) // --mode keeps its static list
+        Assert.Contains("dyn=1", s)  // --project / target are dynamic

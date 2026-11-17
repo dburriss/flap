@@ -19,10 +19,18 @@ let private dispatch (deps: Deps) (m: Matches) : int =
 
 [<EntryPoint>]
 let main argv =
-    let deps = { Store = FileStore.store; Root = Cli.root }
+    let root = Cli.root FileStore.store
+    let deps = { Store = FileStore.store; Root = root }
+    let env name = Option.ofObj (Environment.GetEnvironmentVariable name)
 
     try
-        match Command.tryParse (List.ofArray argv) Cli.root with
+        // A generated completion script calls back with TODO_COMPLETE=<shell>: answer and stop.
+        match Complete.respond env (List.ofArray argv) root with
+        | Some candidates ->
+            Console.Write candidates
+            0
+        | None ->
+        match Command.tryParse (List.ofArray argv) root with
         | Ok m -> dispatch deps m
         | Error e ->
             let text = ParseError.render e

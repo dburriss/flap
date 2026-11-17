@@ -36,11 +36,16 @@ module Completions =
         | None -> "(( " + var + " >= " + string s.First + " ))"
 
     let private shSpec (s: ValueSpec) =
+        if s.Dynamic then "dyn=1" else
         (if s.Values.IsEmpty then [] else [ "vals=(" + (s.Values |> List.map sq |> String.concat " ") + ")" ])
         @ (match s.Path with
            | Some p -> [ "hint=" + string p ]
            | None -> [])
         |> String.concat "; "
+
+    /// True when any arg in the tree has a runtime completer (otherwise scripts stay fully static).
+    let private hasDynamic (cmd: Command) =
+        all cmd |> List.exists (fun c -> c.Args |> List.exists (fun a -> a.Completer.IsSome))
 
     let private casePat (id: string) (names: string list) =
         names |> List.map (fun n -> sq (id + "," + n)) |> String.concat "|"
@@ -98,12 +103,26 @@ module Completions =
         String.concat
             "\n"
             ([ f + "() {"
-               "    local cur=\"${COMP_WORDS[COMP_CWORD]}\" cmd=" + sq (ident cmd.Name) + " w i pos=0 skip=0 lastopt=\"\" hint=\"\""
+               "    local cur=\"${COMP_WORDS[COMP_CWORD]}\" cmd=" + sq (ident cmd.Name) + " w i pos=0 skip=0 dyn=0 lastopt=\"\" hint=\"\""
                "    local -a opts=() subs=() vals=()"
                "    COMPREPLY=()" ]
              @ shBody "" (all cmd) "    for ((i=1; i<COMP_CWORD; i++)); do\n        w=\"${COMP_WORDS[i]}\""
              @ [ "    # `--opt=` is split into `--opt` `=` by COMP_WORDBREAKS"
-                 "    if (( skip )) && [[ \"$cur\" == \"=\" ]]; then cur=\"\"; fi"
+                 "    if (( skip )) && [[ \"$cur\" == \"=\" ]]; then cur=\"\"; fi" ]
+             @ (if hasDynamic cmd then
+                    [
+                 "    if (( dyn )); then"
+                 "        # runtime completer: ask the program (it re-walks the words itself)"
+                 "        local line"
+                 "        while IFS= read -r line; do"
+                 "            [[ -n \"$line\" ]] && COMPREPLY+=( \"$(printf '%q' \"${line%%$'\\t'*}\")\" )"
+                 "        done < <(" + Complete.envVarName cmd + "=bash \"${COMP_WORDS[0]}\" \"${COMP_WORDS[@]:1:COMP_CWORD}\" 2>/dev/null)"
+                 "        return 0"
+                 "    fi"
+                    ]
+                else
+                    [])
+             @ [
                  "    if (( skip || ${#vals[@]} )) || [[ -n \"$hint\" ]]; then"
                  "        for w in \"${vals[@]}\"; do"
                  "            [[ \"$w\" == \"$cur\"* ]] && COMPREPLY+=( \"$(printf '%q' \"$w\")\" )"
@@ -129,19 +148,35 @@ module Completions =
             "\n"
             ([ "#compdef " + cmd.Name
                f + "() {"
-               "    local cur=\"${words[CURRENT]}\" cmd=" + sq (ident cmd.Name) + " w pos=0 skip=0 lastopt=\"\" hint=\"\""
+               "    local cur=\"${words[CURRENT]}\" cmd=" + sq (ident cmd.Name) + " w pos=0 skip=0 dyn=0 lastopt=\"\" hint=\"\""
                "    local -a opts subs vals" ]
              @ shBody "" (all cmd) "    for w in \"${(@)words[2,CURRENT-1]}\"; do"
              @ [ "    if (( ! skip )) && [[ \"$cur\" == --*=* ]]; then"
-                 "        lastopt=\"${cur%%=*}\"; skip=1; vals=(); hint=\"\""
+                 "        lastopt=\"${cur%%=*}\"; skip=1; vals=(); hint=\"\"; dyn=0"
                  "        compset -P '*='"
                  "        case \"$cmd,$lastopt\" in" ]
              @ (all cmd
                 |> List.collect (fun c ->
                     optionSpecs c |> List.map (fun (ns, s) -> "            " + casePat c.CtxId ns + ") " + shSpec s + " ;;")))
              @ [ "        esac"
+                 "    fi" ]
+             @ (if hasDynamic cmd then
+                    [
+                 "    if (( dyn )); then"
+                 "        # runtime completer: ask the program (it re-walks the words itself)"
+                 "        local -a dv dd; local l"
+                 "        for l in \"${(@f)$(" + Complete.envVarName cmd + "=zsh \"${words[1]}\" \"${(@)words[2,CURRENT]}\" 2>/dev/null)}\"; do"
+                 "            [[ -n \"$l\" ]] || continue"
+                 "            dv+=( \"${l%%$'\\t'*}\" )"
+                 "            dd+=( \"${l%%$'\\t'*}${${l#*$'\\t'}:+ -- ${l#*$'\\t'}}\" )"
+                 "        done"
+                 "        (( ${#dv} )) && compadd -d dd -- \"${dv[@]}\""
+                 "        return 0"
                  "    fi"
-                 "    if (( skip || ${#vals} )) || [[ -n \"$hint\" ]]; then"
+                    ]
+                else
+                    [])
+             @ [ "    if (( skip || ${#vals} )) || [[ -n \"$hint\" ]]; then"
                  "        (( ${#vals} )) && compadd -- \"${vals[@]}\""
                  "        (( skip || ! ${#subs} )) || compadd -- \"${subs[@]}\""
                  "        case \"$hint\" in"
