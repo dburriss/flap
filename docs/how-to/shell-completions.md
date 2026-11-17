@@ -18,7 +18,7 @@ Subcommands, flags and options are completed automatically. For the values after
 ```fsharp
 let cmd =
     Command.create "convert"
-    |> Command.arg (Arg.create "input" |> Arg.positional 1 |> Arg.valueHint FilePath)
+    |> Command.arg (Arg.create "input" |> Arg.positional 1 |> Arg.required |> Arg.valueHint FilePath)
     |> Command.arg (Arg.create "format" |> Arg.long "format" |> Arg.possibleValues [ "png"; "jpg"; "webp" ])
     |> Command.arg (Arg.create "out" |> Arg.long "out" |> Arg.valueHint DirPath)
 ```
@@ -47,12 +47,17 @@ let shells =
 let cmd =
     Command.create "convert"
     // ... the arguments from part 1 ...
+    |> Command.subcommandNegatesRequired
     |> Command.subcommand (
         Command.create "completions"
         |> Command.arg (
             Arg.create "shell" |> Arg.positional 1 |> Arg.required
             |> Arg.possibleValues (List.map fst shells))) // completes the shell names
+```
 
+`Command.subcommandNegatesRequired` lets `convert completions bash` run even though `convert` itself requires an `input`. Without it, Flap reports the missing `<INPUT>` first.
+
+```fsharp
 match Matches.trySubcommand "completions" m with
 | Some sm ->
     match Matches.getWith (Value.oneOf shells) "shell" sm with

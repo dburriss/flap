@@ -94,6 +94,8 @@ type Command =
       Groups: ArgGroup list
       CommandAliases: string list
       SubcommandRequired: bool
+      /// When a subcommand is given, this command's required args and required groups are not enforced.
+      SubcommandNegatesRequired: bool
       ArgRequiredElseHelp: bool
       AllowExternalSubcommands: bool
       HelpFlag: bool

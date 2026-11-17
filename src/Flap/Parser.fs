@@ -290,6 +290,8 @@ module Parser =
 
         let validate (st: State) : Result<State, ParseError> =
             let isPresent = present st
+            // a subcommand was given and this command opted out of requiring its own args then
+            let negated = cmd.SubcommandNegatesRequired && st.Sub.IsSome
             let nameOf id =
                 match allArgs |> List.tryFind (fun a -> a.Id = id) with
                 | Some a -> argDisplayName a
@@ -297,7 +299,8 @@ module Parser =
             let missing =
                 allArgs
                 |> List.filter (fun a ->
-                    (a.Required || not a.RequiredUnless.IsEmpty)
+                    not negated
+                    && (a.Required || not a.RequiredUnless.IsEmpty)
                     && not (isPresent a.Id)
                     && not (Map.containsKey a.Id st.Vals)
                     && not (expand st a.RequiredUnless |> List.exists isPresent))
@@ -307,7 +310,7 @@ module Parser =
                 groups
                 |> List.tryPick (fun g ->
                     let n = g.Members |> List.filter isPresent |> List.length
-                    if g.GroupRequired && n = 0 then Some(GroupRequired(g.GroupId, usage))
+                    if g.GroupRequired && n = 0 && not negated then Some(GroupRequired(g.GroupId, usage))
                     elif not g.Multiple && n > 1 then Some(GroupConflict(g.GroupId, usage))
                     else None)
             let conflict =

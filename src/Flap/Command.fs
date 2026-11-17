@@ -17,6 +17,7 @@ module Command =
           Groups = []
           CommandAliases = []
           SubcommandRequired = false
+          SubcommandNegatesRequired = false
           ArgRequiredElseHelp = false
           AllowExternalSubcommands = false
           HelpFlag = true
@@ -35,6 +36,10 @@ module Command =
     let subcommands (xs: Command list) (c: Command) = { c with Subcommands = c.Subcommands @ xs }
     let alias (a: string) (c: Command) = { c with CommandAliases = c.CommandAliases @ [ a ] }
     let subcommandRequired (c: Command) = { c with SubcommandRequired = true }
+
+    /// When a subcommand is given, don't enforce this command's required args or required groups
+    /// (for tools like `tool <input>` that also have `tool completions <shell>`).
+    let subcommandNegatesRequired (c: Command) = { c with SubcommandNegatesRequired = true }
     let argRequiredElseHelp (c: Command) = { c with ArgRequiredElseHelp = true }
     let allowExternalSubcommands (c: Command) = { c with AllowExternalSubcommands = true }
     let disableHelpFlag (c: Command) = { c with HelpFlag = false }

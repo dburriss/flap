@@ -17,6 +17,7 @@ All builders take the thing being built as their last argument, so they pipe: `A
 | `alias a` | Alternate command name |
 | `group id members required multiple` | Define an argument group |
 | `subcommandRequired` | Error when no subcommand given |
+| `subcommandNegatesRequired` | When a subcommand is given, don't enforce this command's required args or required groups |
 | `argRequiredElseHelp` | Show help when no args given |
 | `allowExternalSubcommands` | Collect unknown subcommands (see `Matches.externalArgs`) |
 | `disableHelpFlag` / `disableVersionFlag` | Remove the built-in flags |

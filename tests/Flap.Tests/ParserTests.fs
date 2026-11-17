@@ -557,3 +557,44 @@ let ``unchanged help without new fields`` () =
     Assert.Equal(
         "short about\n\nUsage: h [OPTIONS]\n\nOptions:\n      --plain <PLAIN>  Plain opt\n      --net <NET>      Net opt\n  -h, --help           Print help (see a summary with '-h')\n",
         plain)
+
+// ---- subcommandNegatesRequired ---------------------------------------------------------------
+
+let private withSubcommand (negate: bool) =
+    Command.create "convert"
+    |> Command.arg (Arg.create "input" |> Arg.positional 1 |> Arg.required)
+    |> Command.arg (Arg.create "format" |> Arg.long "format" |> Arg.required)
+    |> Command.arg (Arg.create "a" |> Arg.long "a" |> Arg.group "pick")
+    |> Command.group "pick" [ "a" ] true false
+    |> Command.subcommand (
+        Command.create "completions"
+        |> Command.arg (Arg.create "shell" |> Arg.positional 1 |> Arg.required)
+    )
+    |> (if negate then Command.subcommandNegatesRequired else id)
+
+[<Fact>]
+let ``without the setting a required parent arg blocks the subcommand`` () =
+    match Command.tryParse [ "completions"; "bash" ] (withSubcommand false) with
+    | Error(MissingRequired _) -> ()
+    | other -> failwithf "expected MissingRequired, got %A" (other |> Result.map ignore)
+
+[<Fact>]
+let ``with the setting a subcommand does not need the parent's required args or groups`` () =
+    match Command.tryParse [ "completions"; "bash" ] (withSubcommand true) with
+    | Ok m ->
+        let sm = Matches.trySubcommand "completions" m
+        Assert.True(sm.IsSome)
+        Assert.Equal("bash", Matches.getString "shell" sm.Value)
+    | Error e -> failwithf "unexpected error: %s" (ParseError.render e)
+
+[<Fact>]
+let ``with the setting the parent still requires its args when no subcommand is given`` () =
+    match Command.tryParse [] (withSubcommand true) with
+    | Error(MissingRequired _) -> ()
+    | _ -> failwith "expected MissingRequired"
+
+[<Fact>]
+let ``with the setting the subcommand's own required args are still enforced`` () =
+    match Command.tryParse [ "completions" ] (withSubcommand true) with
+    | Error(MissingRequired(args, _)) -> Assert.Equal<string list>([ "<SHELL>" ], args)
+    | _ -> failwith "expected the subcommand's <SHELL> to be required"
