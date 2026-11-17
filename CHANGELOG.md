@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Arg.trailingVarArg`: the last multi-value positional takes every remaining token verbatim (for exec-style wrappers like `tool run cmd --flag`). `Command.check` rejects it on any other arg.
 - Help customization: `Command.longAbout`, `Command.beforeHelp`, `Command.afterHelp` and `Arg.helpHeading`.
 - Value-aware shell completions: possible values complete for options and positionals, and the new `Arg.valueHint` (`ValueHint`: `AnyPath`, `FilePath`, `DirPath`, `Other`) completes file system paths.
+- Dynamic completion building blocks: `Arg.completer` / `Arg.completerValues` attach a runtime completer to an arg, and the pure `Complete.candidates`, `Complete.envVarName` and `Complete.render` compute and format candidates (the per-app `<NAME>_COMPLETE` protocol). The `Shell` type now lives in `Types.fs` (same namespace, no API change).
 - Nushell completions (`Completions.generate Nushell`), generated as `extern` definitions with `@` completers.
 - `mise.toml` pinning nushell, powershell and fish for smoke-testing the generated completion scripts.
 - Release automation: `./publish.sh` bumps the version, updates the changelog and tags; the tag-triggered `publish-nuget.yml` workflow publishes the `Flap` package to NuGet through Trusted Publishing. The package now carries its metadata and README.

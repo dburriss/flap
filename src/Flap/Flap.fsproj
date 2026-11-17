@@ -49,6 +49,8 @@ Fish completions no longer leak the continuation lines of multi-line help text a
     <Compile Include="Matches.fs" />
     <Compile Include="Help.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="CompletionModel.fs" />
+    <Compile Include="Complete.fs" />
     <Compile Include="Completions.fs" />
     <Compile Include="Command.fs" />
   </ItemGroup>

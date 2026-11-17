@@ -1,5 +1,13 @@
 namespace Flap
 
+/// A shell that completion scripts can be generated for.
+type Shell =
+    | Bash
+    | Zsh
+    | Fish
+    | PowerShell
+    | Nushell
+
 /// What an argument does when it is seen on the command line.
 type ArgAction =
     | Set
@@ -26,6 +34,13 @@ type ValueHint =
     | DirPath
     /// Anything else: no path completion.
     | Other
+
+/// A completion suggestion returned by an argument's completer.
+type Candidate =
+    { /// The text inserted when the candidate is chosen.
+      Value: string
+      /// Optional description shown next to the candidate by shells that support it.
+      Help: string option }
 
 /// A command line argument definition (flag, option or positional).
 type Arg =
@@ -54,7 +69,9 @@ type Arg =
       AllowHyphenValues: bool
       TrailingVarArg: bool
       HelpHeading: string option
-      ValueHint: ValueHint option }
+      ValueHint: ValueHint option
+      /// Computes completion candidates at runtime from the partial word being completed.
+      Completer: (string -> Candidate list) option }
 
 /// A named set of arguments.
 type ArgGroup =

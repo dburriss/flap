@@ -30,7 +30,8 @@ module Arg =
           AllowHyphenValues = false
           TrailingVarArg = false
           HelpHeading = None
-          ValueHint = None }
+          ValueHint = None
+          Completer = None }
 
     let short (c: char) (a: Arg) = { a with Short = Some c }
     let long (l: string) (a: Arg) = { a with Long = Some l }
@@ -50,6 +51,14 @@ module Arg =
     let delimiter (c: char) (a: Arg) = { a with Delimiter = Some c }
     let possibleValues (vs: string list) (a: Arg) = { a with PossibleValues = vs }
     let validate (f: string -> Result<unit, string>) (a: Arg) = { a with Validator = Some f }
+
+    /// Complete this argument's value at runtime. The function receives the partial word being
+    /// completed and returns candidates. The generated shell script calls back into the program for it.
+    let completer (f: string -> Candidate list) (a: Arg) = { a with Completer = Some f }
+
+    /// Like `completer`, for suggestions without descriptions.
+    let completerValues (f: string -> string list) (a: Arg) =
+        { a with Completer = Some(fun w -> f w |> List.map (fun v -> { Value = v; Help = None })) }
     let requires (id: string) (a: Arg) = { a with Requires = a.Requires @ [ id ] }
     let conflictsWith (id: string) (a: Arg) = { a with ConflictsWith = a.ConflictsWith @ [ id ] }
     let requiredUnless (id: string) (a: Arg) = { a with RequiredUnless = a.RequiredUnless @ [ id ] }

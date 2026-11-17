@@ -35,6 +35,17 @@ let ``valueHint defaults to None and can be set`` () =
     Assert.Equal(Some DirPath, (Arg.create "x" |> Arg.valueHint DirPath).ValueHint)
 
 [<Fact>]
+let ``completer defaults to None and can be set`` () =
+    Assert.True((Arg.create "x").Completer.IsNone)
+    let a = Arg.create "x" |> Arg.completer (fun w -> [ { Value = w + "1"; Help = Some "one" } ])
+    Assert.Equal<Candidate list>([ { Value = "p1"; Help = Some "one" } ], a.Completer.Value "p")
+
+[<Fact>]
+let ``completerValues wraps plain strings without help`` () =
+    let a = Arg.create "x" |> Arg.completerValues (fun w -> [ w; w + w ])
+    Assert.Equal<Candidate list>([ { Value = "a"; Help = None }; { Value = "aa"; Help = None } ], a.Completer.Value "a")
+
+[<Fact>]
 let ``hidden args stay out of completions for every shell`` () =
     for sh in [ Bash; Zsh; Fish; PowerShell ] do
         let s = gen sh
