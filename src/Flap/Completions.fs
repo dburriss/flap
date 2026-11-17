@@ -202,10 +202,22 @@ module Completions =
         let valuesArg (vs: string list) =
             " -a " + fsq ("(printf \"%s\\n\" " + (vs |> List.map fdq |> String.concat " ") + ")")
         let dirs = " -a " + fsq "(__fish_complete_directories (commandline -ct))"
+        let dynFn = "__" + ident cmd.Name + "_flap_dyn"
+        let dynArg = " -a " + fsq ("(" + dynFn + ")")
         let desc (h: string option) =
             match h with
             | Some h when oneLine h <> "" -> " -d " + fsq (oneLine h)
             | _ -> ""
+        let dynHelper =
+            if hasDynamic cmd then
+                [ "function " + dynFn
+                  "    set -l toks (commandline -opc)"
+                  "    set -l prog $toks[1]"
+                  "    set -e toks[1]"
+                  "    env " + Complete.envVarName cmd + "=fish $prog $toks (commandline -ct) 2>/dev/null"
+                  "end" ]
+            else
+                []
         let helper =
             [ "function " + fn
               "    set -l toks (commandline -opc)"
@@ -261,6 +273,7 @@ module Completions =
                        else
                            match specOf a with
                            | None -> " -r"
+                           | Some { Dynamic = true } -> " -r -f" + dynArg
                            | Some { Path = Some 'd'; Values = vs } ->
                                " -r -f" + dirs + (if vs.IsEmpty then "" else valuesArg vs)
                            | Some { Path = Some _; Values = vs } -> " -r -F" + (if vs.IsEmpty then "" else valuesArg vs)
@@ -274,13 +287,15 @@ module Completions =
                 |> List.collect (fun s ->
                     let range =
                         c.CtxId + " " + string s.First + " " + (match s.Last with Some l -> string l | None -> "inf")
-                    (if s.Spec.Values.IsEmpty then [] else [ complete + cond range + " -f" + valuesArg s.Spec.Values ])
+                    (if s.Spec.Dynamic then [ complete + cond range + " -f" + dynArg ]
+                     elif s.Spec.Values.IsEmpty then []
+                     else [ complete + cond range + " -f" + valuesArg s.Spec.Values ])
                     @ (match s.Spec.Path with
                        | Some 'd' -> [ complete + cond range + " -f" + dirs ]
                        | Some _ -> [ complete + cond range + " -F" ]
                        | None -> []))
             opts @ subs @ positionals
-        String.concat "\n" (helper @ (ctxs |> List.collect perCtx)) + "\n"
+        String.concat "\n" (dynHelper @ helper @ (ctxs |> List.collect perCtx)) + "\n"
 
     // ---------------------------------------------------------------------------------------------
     // PowerShell
@@ -290,6 +305,7 @@ module Completions =
         let ctxs = all cmd
         let psArr (xs: string list) = "@(" + (xs |> List.map psq |> String.concat ", ") + ")"
         let psSpec (s: ValueSpec) =
+            if s.Dynamic then "$dyn = $true" else
             (if s.Values.IsEmpty then [] else [ "$vals = " + psArr s.Values ])
             @ (match s.Path with
                | Some p -> [ "$hint = " + psq (string p) ]
@@ -361,7 +377,7 @@ module Completions =
                  "        $i = $cur.IndexOf('=')"
                  "        $lastopt = $cur.Substring(0, $i); $prefix = $cur.Substring(0, $i + 1); $cur = $cur.Substring($i + 1); $skip = $true"
                  "    }"
-                 "    $vals = @(); $hint = ''; $opts = @(); $subs = @()"
+                 "    $vals = @(); $hint = ''; $opts = @(); $subs = @(); $dyn = $false"
                  "    if ($skip) {"
                  "        switch -casesensitive (\"$cmd,$lastopt\") {" ]
              @ values
@@ -370,6 +386,28 @@ module Completions =
              @ [ "            default { }"
                  "        }"
                  "    }"
+                 ]
+             @ (if hasDynamic cmd then
+                    [
+                 "    if ($dyn) {"
+                 "        # runtime completer: ask the program (it re-walks the words itself)"
+                 "        $argv = @($commandAst.CommandElements | Select-Object -Skip 1 | Where-Object { $_.Extent.EndOffset -lt $cursorPosition } | ForEach-Object { $_.ToString() })"
+                 "        $argv += \"$wordToComplete\""
+                 "        $env:" + Complete.envVarName cmd + " = 'powershell'"
+                 "        try { $lines = & $commandAst.CommandElements[0].ToString() @argv 2>$null } finally { Remove-Item Env:" + Complete.envVarName cmd + " -ErrorAction SilentlyContinue }"
+                 "        foreach ($l in @($lines)) {"
+                 "            if (-not $l) { continue }"
+                 "            $parts = $l -split \"`t\", 2"
+                 "            $v = $parts[0]"
+                 "            $d = if ($parts.Count -gt 1 -and $parts[1]) { $parts[1] } else { $v }"
+                 "            [System.Management.Automation.CompletionResult]::new($prefix + (Get-FlapQuoted $v), $v, 'ParameterValue', $d)"
+                 "        }"
+                 "        return"
+                 "    }"
+                    ]
+                else
+                    [])
+             @ [
                  "    if ($skip -or $vals.Count -gt 0 -or $hint) {"
                  "        foreach ($v in $vals) {"
                  "            if ($v.StartsWith($cur)) { [System.Management.Automation.CompletionResult]::new($prefix + (Get-FlapQuoted $v), $v, 'ParameterValue', $v) }"
@@ -410,7 +448,7 @@ module Completions =
         let ctxs = all cmd
         let completerName (c: Ctx) (a: Arg) = "nu-complete " + String.concat " " c.Path + " " + a.Id
         let typeOf (c: Ctx) (a: Arg) =
-            if not a.PossibleValues.IsEmpty then "string@" + nq (completerName c a)
+            if a.Completer.IsSome || not a.PossibleValues.IsEmpty then "string@" + nq (completerName c a)
             else
                 match pathOf a with
                 | Some 'd' -> "directory"
@@ -444,9 +482,17 @@ module Completions =
         let defs (c: Ctx) =
             visibleOptions c
             @ (c.Args |> List.filter (fun a -> a.Index.IsSome && not a.Hidden))
-            |> List.filter (fun a -> not a.PossibleValues.IsEmpty && (a.Index.IsSome || Arg.takesValue a))
+            |> List.filter (fun a -> (a.Completer.IsSome || not a.PossibleValues.IsEmpty) && (a.Index.IsSome || Arg.takesValue a))
             |> List.map (fun a ->
-                "def " + nq (completerName c a) + " [] { [ " + (a.PossibleValues |> List.map nq |> String.concat " ") + " ] }")
+                if a.Completer.IsSome then
+                    // runtime completer: nushell passes the command line so far; ask the program
+                    "def " + nq (completerName c a) + " [context: string] {\n"
+                    + "    with-env { " + Complete.envVarName cmd + ": \"nushell\" } {\n"
+                    + "        ^" + nq cmd.Name + " ...($context | split row \" \" | skip 1)\n"
+                    + "    } | from tsv --noheaders --no-infer | rename value description\n"
+                    + "}"
+                else
+                    "def " + nq (completerName c a) + " [] { [ " + (a.PossibleValues |> List.map nq |> String.concat " ") + " ] }")
         let namePaths (c: Ctx) : string list =
             // Walk the tree following c.Path (canonical names) and fan out over aliases at each level below the root.
             let rec go (cur: Command) (names: string list) : string list list =

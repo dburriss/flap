@@ -187,13 +187,20 @@ let private staticOnly =
 
 [<Fact>]
 let ``scripts only call back into the program when an arg has a completer`` () =
-    for sh in [ Bash; Zsh ] do
+    for sh, name in [ Bash, "bash"; Zsh, "zsh"; Fish, "fish"; PowerShell, "powershell"; Nushell, "nushell" ] do
         Assert.DoesNotContain("_COMPLETE", Completions.generate sh staticOnly)
-        Assert.Contains("MY_TOOL_COMPLETE=" + (if sh = Bash then "bash" else "zsh"), Completions.generate sh app)
+        Assert.Contains("MY_TOOL_COMPLETE", Completions.generate sh app)
+        Assert.Contains(name, Completions.generate sh app)
 
 [<Fact>]
 let ``static values and flags are still emitted next to dynamic ones`` () =
-    for sh in [ Bash; Zsh ] do
+    for sh in [ Bash; Zsh; Fish; PowerShell; Nushell ] do
         let s = Completions.generate sh app
-        Assert.Contains("'fast'", s) // --mode keeps its static list
-        Assert.Contains("dyn=1", s)  // --project / target are dynamic
+        Assert.Contains("fast", s)   // --mode keeps its static list
+        Assert.Contains("deploy", s) // subcommands are still static
+
+[<Fact>]
+let ``nushell dynamic completer keeps values as strings`` () =
+    let s = Completions.generate Nushell app
+    Assert.Contains("[context: string]", s)
+    Assert.Contains("from tsv --noheaders --no-infer", s)
