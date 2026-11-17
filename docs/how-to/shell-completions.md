@@ -32,6 +32,7 @@ match Matches.trySubcommand "completions" m with
 
 - Fixed choices: `Arg.possibleValues [ "fast"; "slow" ]` completes after `--mode <TAB>`, `--mode=<TAB>` and at a positional's slot.
 - Paths: `Arg.valueHint FilePath` (or `DirPath`, `AnyPath`) completes file system paths.
+- Values computed at runtime: see [Complete values at runtime](dynamic-completions.md).
 
 ## Test a generated script
 

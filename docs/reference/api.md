@@ -53,6 +53,8 @@ All builders take the thing being built as their last argument, so they pipe: `A
 | `requires id` / `conflictsWith id` / `requiredUnless id` | Relationships to other args |
 | `group g` | Add to argument group `g` |
 | `valueHint h` | Hint for path completion |
+| `completer f` | Runtime completer `string -> Candidate list` (see [Completions reference](completions.md)) |
+| `completerValues f` | Runtime completer `string -> string list`, without descriptions |
 | `allowHyphenValues` | Value may start with `-` |
 | `trailingVarArg` | Last positional takes everything after its first value verbatim |
 

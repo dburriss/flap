@@ -26,3 +26,13 @@ Flap copies clap's vocabulary (`Arg`, `Command`, `conflictsWith`, `requires`, gr
 ## Why completions are generated from the definition
 
 Because the command is data, `Completions.generate` can derive scripts for every shell from the same tree the parser uses. This keeps completions in step with the parser, including per-subcommand scoping of global args and possible values.
+
+## Why runtime completion is hybrid
+
+A script can only list values it knew when it was generated. Values that change (ids, project names) have to come from the running program, so an arg can carry a completer and the script then calls back into the program for that arg.
+
+Only those args call back. Everything else (subcommands, flags, fixed values, paths) stays in the generated script, because launching a process on every Tab press is slow, especially for apps that are not compiled ahead of time. An app with no completers gets the same static script as before.
+
+The call-back is signalled with an environment variable named after the app (`MY_TOOL_COMPLETE`) rather than a shared name. A process inherits its parent's environment, so a shared name set while completing one Flap app would also switch any Flap app it starts into completion mode.
+
+Computing candidates is a pure function of the command tree and the words typed so far (`Complete.candidates`). Only reading the variable and printing happen at the edge, in `Command.parse`, which matches the rule that console I/O stays out of the parsing core and keeps the code Native AOT and Fable friendly.

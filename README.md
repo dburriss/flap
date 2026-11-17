@@ -22,7 +22,7 @@
 - **Subcommands.** Nested commands, global args, aliases and external subcommands. See [Structure an application](docs/how-to/structure-an-application.md).
 - **Validation.** Defaults, env vars, possible values, validators, conflicts, requires and groups.
 - **Help and version.** Generated `--help`/`--version`, did-you-mean suggestions and room to customize.
-- **Shell completions.** Bash, Zsh, Fish, PowerShell and Nushell, value-aware. See [Shell completions](docs/how-to/shell-completions.md).
+- **Shell completions.** Bash, Zsh, Fish, PowerShell and Nushell, value-aware. Values can also be computed at runtime. See [Shell completions](docs/how-to/shell-completions.md) and [Complete values at runtime](docs/how-to/dynamic-completions.md).
 - **Pure core.** `Command.tryParse*` returns a `Result` with no console I/O; only `Command.parse` prints and exits.
 - **Native AOT and Fable.** Reflection-free, so it publishes as Native AOT and runs under Fable. See [AOT and Fable](docs/how-to/aot-and-fable.md).
 
@@ -65,7 +65,7 @@ Organised by [Diataxis](https://diataxis.fr/), starting at the [docs index](docs
 | I want to... | Go to |
 | --- | --- |
 | Learn Flap by doing | [Getting started](docs/tutorials/getting-started.md) |
-| Get a specific job done | [Structure an application](docs/how-to/structure-an-application.md), [Shell completions](docs/how-to/shell-completions.md), [AOT and Fable](docs/how-to/aot-and-fable.md) |
+| Get a specific job done | [Structure an application](docs/how-to/structure-an-application.md), [Shell completions](docs/how-to/shell-completions.md), [Dynamic completions](docs/how-to/dynamic-completions.md), [AOT and Fable](docs/how-to/aot-and-fable.md) |
 | Look up a function or type | [API reference](docs/reference/api.md), [Completions reference](docs/reference/completions.md) |
 | Understand why it works this way | [Design](docs/explanation/design.md) |
 
