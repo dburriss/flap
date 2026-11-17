@@ -118,6 +118,13 @@ module Command =
         (argv: string list)
         (cmd: Command)
         : Matches =
+        // Completion mode: a generated script calls the program with `<NAME>_COMPLETE=<shell>`
+        // and the words typed so far. Print candidates and exit instead of parsing.
+        match env (Complete.envVarName cmd) |> Option.bind Complete.tryParseShell with
+        | Some shell ->
+            out (Complete.render shell (Complete.candidates argv cmd))
+            exit 0
+        | None ->
         match tryParseWith env argv cmd with
         | Ok m -> m
         | Error e ->

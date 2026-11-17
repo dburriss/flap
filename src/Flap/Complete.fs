@@ -12,7 +12,17 @@ module Complete =
         let isAlnum (c: char) = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
         cmd.Name.ToUpperInvariant() |> String.map (fun c -> if isAlnum c then c else '_') |> fun s -> s + "_COMPLETE"
 
-    let private startsWith (prefix: string) (s: string) = s.StartsWith(prefix, System.StringComparison.Ordinal)
+    /// Parse the shell name a generated script puts in the completion variable (case-insensitive).
+    let tryParseShell (name: string) : Shell option =
+        match name.Trim().ToLowerInvariant() with
+        | "bash" -> Some Bash
+        | "zsh" -> Some Zsh
+        | "fish" -> Some Fish
+        | "powershell" | "pwsh" -> Some PowerShell
+        | "nushell" | "nu" -> Some Nushell
+        | _ -> None
+
+    let private startsWith(prefix: string) (s: string) = s.StartsWith(prefix, System.StringComparison.Ordinal)
 
     let private plain (v: string) : Candidate = { Value = v; Help = None }
 
